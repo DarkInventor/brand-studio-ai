@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Download, FileArchiveIcon as FileZip, Instagram, X, CheckCircle2 } from "lucide-react"
 import { getPosts } from "@/lib/actions/posts"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function SummaryPage() {
   const [posts, setPosts] = useState<any[]>([])
@@ -14,11 +15,14 @@ export default function SummaryPage() {
   const [showSuccessBanner, setShowSuccessBanner] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [isExporting, setIsExporting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function fetchPosts() {
+      setIsLoading(true)
       const data = await getPosts()
       setPosts(data || [])
+      setIsLoading(false)
     }
     fetchPosts()
   }, [])
@@ -162,30 +166,48 @@ export default function SummaryPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {posts.map((post) => (
-          <div key={post.id} className="relative rounded-lg border bg-card">
-            <div className="absolute left-2 top-2 z-10">
-              <Checkbox
-                id={`select-${post.id}`}
-                checked={selectedPosts.includes(post.id)}
-                onCheckedChange={() => handleSelectPost(post.id)}
-                aria-label={`Select post ${post.id}`}
-                className="h-5 w-5 rounded-sm border-2 bg-white/90"
-              />
-            </div>
-            <div className="relative aspect-square overflow-hidden rounded-t-lg">
-              <Image
-                src={post.image_url || `/placeholder.svg?height=200&width=200&text=${post.id}`}
-                alt={`Post ${post.id}`}
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="p-2">
-              <p className="text-xs line-clamp-2">{post.caption}</p>
-            </div>
-          </div>
-        ))}
+        {isLoading
+          ? Array.from({ length: 12 }).map((_, idx) => (
+              <div key={idx} className="relative rounded-lg border bg-card">
+                <div className="absolute left-2 top-2 z-10">
+                  <Skeleton className="h-5 w-5 rounded-sm" />
+                </div>
+                <div className="relative aspect-square overflow-hidden rounded-t-lg w-full bg-muted/70 skeleton-shimmer flex items-center justify-center">
+                  <svg className="w-10 h-10 text-muted-foreground/40" aria-hidden="true" fill="currentColor" viewBox="0 0 16 20">
+                    <path d="M14.066 0H7v5a2 2 0 0 1-2 2H0v11a1.97 1.97 0 0 0 1.934 2h12.132A1.97 1.97 0 0 0 16 18V2a1.97 1.97 0 0 0-1.934-2ZM10.5 6a1.5 1.5 0 1 1 0 2.999A1.5 1.5 0 0 1 10.5 6Zm2.221 10.515a1 1 0 0 1-.858.485h-8a1 1 0 0 1-.9-1.43L5.6 10.039a.978.978 0 0 1 .936-.57 1 1 0 0 1 .9.632l1.181 2.981.541-1a.945.945 0 0 1 .883-.522 1 1 0 0 1 .879.529l1.832 3.438a1 1 0 0 1-.031.988Z"/>
+                    <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.98 2.98 0 0 0 .13 5H5Z"/>
+                  </svg>
+                </div>
+                <div className="p-2">
+                  <Skeleton className="h-4 w-3/4 mb-2" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))
+          : posts.map((post) => (
+              <div key={post.id} className="relative rounded-lg border bg-card">
+                <div className="absolute left-2 top-2 z-10">
+                  <Checkbox
+                    id={`select-${post.id}`}
+                    checked={selectedPosts.includes(post.id)}
+                    onCheckedChange={() => handleSelectPost(post.id)}
+                    aria-label={`Select post ${post.id}`}
+                    className="h-5 w-5 rounded-sm border-2 bg-white/90"
+                  />
+                </div>
+                <div className="relative aspect-square overflow-hidden rounded-t-lg">
+                  <Image
+                    src={post.image_url || `/placeholder.svg?height=200&width=200&text=${post.id}`}
+                    alt={`Post ${post.id}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-2">
+                  <p className="text-xs line-clamp-2">{post.caption}</p>
+                </div>
+              </div>
+            ))}
       </div>
 
       {isExporting && (
