@@ -186,6 +186,28 @@ function utcToEst24Hour(utcIso: string) {
   return utcDate.toISOString().slice(11, 16); // "HH:MM"
 }
 
+// Helper: Convert UTC timestamp string (from DB) to EST 'YYYY-MM-DD' and 'HH:MM' strings
+function utcTimestampToEstDateTime(utcString: string): { date: string, time: string } {
+  if (!utcString) return { date: '', time: '' };
+  try {
+    // Accept both 'YYYY-MM-DDTHH:MM:SSZ' and 'YYYY-MM-DD HH:MM:SS' (no T, no Z)
+    let isoString = utcString;
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(utcString)) {
+      // Convert 'YYYY-MM-DD HH:MM:SS' to 'YYYY-MM-DDTHH:MM:SSZ'
+      isoString = utcString.replace(' ', 'T') + 'Z';
+    }
+    const utcDate = new Date(isoString);
+    if (isNaN(utcDate.getTime())) return { date: '', time: '' };
+    // EST is UTC-5
+    utcDate.setHours(utcDate.getHours() - 5);
+    const estDate = utcDate.toISOString().split('T')[0];
+    const estTime = utcDate.toISOString().slice(11, 16); // 'HH:MM'
+    return { date: estDate, time: estTime };
+  } catch {
+    return { date: '', time: '' };
+  }
+}
+
 export default function SchedulerPage() {
   const [unscheduledPosts, setUnscheduledPosts] = useState<Post[]>([])
   const [brandKits, setBrandKits] = useState<BrandKit[]>([])
@@ -212,18 +234,15 @@ export default function SchedulerPage() {
     // Map scheduled posts into slots
     scheduledPosts.forEach((post) => {
       if (!isPost(post) || !post.scheduled_for) return;
-      // scheduled_for = 'YYYY-MM-DD HH:MM:00+00' or 'YYYY-MM-DD HH:MM:00-05:00' or 'YYYY-MM-DD HH:MM:00'
-      const [dateStr, timeStrRaw] = post.scheduled_for.split(' ');
-      // Remove timezone info (e.g., +00, -05:00, Z) from time part
-      const timeStr = timeStrRaw ? timeStrRaw.replace(/([\+\-Z].*)$/, '') : '';
-      const time = timeStr ? timeStr.slice(0, 5) : '';
+      // Convert UTC timestamp to EST date and time
+      const { date: estDateStr, time: estTime } = utcTimestampToEstDateTime(post.scheduled_for);
       // Week view
       newWeekDays.forEach(day => {
         const dayDateStr = day.date.toISOString().split('T')[0];
-        if (dayDateStr === dateStr) {
-          let slot = day.slots.find(s => s.time === time)
+        if (dayDateStr === estDateStr) {
+          let slot = day.slots.find(s => s.time === estTime)
           if (!slot) {
-            slot = { id: `slot-${day.dayNumber}-${time}`, time, post: null }
+            slot = { id: `slot-${day.dayNumber}-${estTime}`, time: estTime, post: null }
             day.slots.push(slot)
           }
           slot.post = post
@@ -232,10 +251,10 @@ export default function SchedulerPage() {
       // Month view
       newMonthDays.forEach(day => {
         const dayDateStr = day.date.toISOString().split('T')[0];
-        if (dayDateStr === dateStr) {
-          let slot = day.slots.find(s => s.time === time)
+        if (dayDateStr === estDateStr) {
+          let slot = day.slots.find(s => s.time === estTime)
           if (!slot) {
-            slot = { id: `month-slot-${day.dayNumber}-${time}`, time, post: null }
+            slot = { id: `month-slot-${day.dayNumber}-${estTime}`, time: estTime, post: null }
             day.slots.push(slot)
           }
           slot.post = post
@@ -571,6 +590,7 @@ export default function SchedulerPage() {
                             >
                               <div className="mb-1 flex items-center gap-2">
                                 <Clock className="h-3 w-3" />
+                                  <span className="text-[10px] text-muted-foreground font-bold">EST</span>
                                 <Input
                                   type="text"
                                   value={slot.time}
@@ -578,6 +598,7 @@ export default function SchedulerPage() {
                                   className="w-16 text-xs"
                                   disabled={isPastDate(day.date)}
                                 />
+                              
                               </div>
                               {slot.post && (
                                 <Draggable draggableId={`scheduled-${slot.post.id}`} index={0}>
@@ -698,6 +719,7 @@ export default function SchedulerPage() {
                                         className="w-16 text-xs"
                                         disabled={isPastDate(day.date)}
                                       />
+                                      <span className="text-[10px] text-muted-foreground">Time is in EST</span>
                                       <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
                                         <Button variant="ghost" size="icon" className="h-4 w-4">
                                           <Edit2 className="h-2 w-2" />
