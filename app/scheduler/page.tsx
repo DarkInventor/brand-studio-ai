@@ -1,543 +1,3 @@
-// "use client"
-
-// import { useState, useEffect } from "react"
-// import Image from "next/image"
-// import { Button } from "@/components/ui/button"
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-// import { ChevronLeft, ChevronRight, Calendar, Plus, Instagram, Edit2, Trash2, Clock } from "lucide-react"
-// import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
-// import { createClient } from "@/lib/supabase/client"
-// import type { Post, BrandKit } from "@/lib/supabase/database.types"
-// import { getBrandKits } from "@/lib/actions/brand-kits"
-// import { getPosts } from "@/lib/actions/posts"
-
-// // Generate days for the current week
-// const generateWeekDays = () => {
-//   const today = new Date()
-//   const day = today.getDay() // 0 is Sunday, 6 is Saturday
-//   const diff = today.getDate() - day + (day === 0 ? -6 : 1) // Adjust to start from Monday
-
-//   return Array.from({ length: 7 }, (_, i) => {
-//     const date = new Date(today)
-//     date.setDate(diff + i)
-//     return {
-//       date,
-//       dayName: date.toLocaleDateString("en-US", { weekday: "short" }),
-//       dayNumber: date.getDate(),
-//       month: date.toLocaleDateString("en-US", { month: "short" }),
-//       isToday: date.toDateString() === today.toDateString(),
-//       slots: Array.from({ length: 4 }, (_, j) => ({
-//         id: `slot-${i}-${j}`,
-//         time: `${9 + j * 3}:00`,
-//         post: null,
-//       })),
-//     }
-//   })
-// }
-
-// // Generate days for the current month
-// const generateMonthDays = () => {
-//   const today = new Date()
-//   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-//   const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-
-//   // Get the day of the week for the first day (0 = Sunday, 1 = Monday, etc.)
-//   let firstDayOfWeek = firstDay.getDay()
-//   // Adjust for Monday as first day of week
-//   firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1
-
-//   // Calculate days from previous month to show
-//   const daysFromPrevMonth = firstDayOfWeek
-
-//   // Calculate total days to show (previous month days + current month days)
-//   const totalDays = daysFromPrevMonth + lastDay.getDate()
-
-//   // Calculate rows needed (7 days per row)
-//   const rows = Math.ceil(totalDays / 7)
-
-//   // Generate all days to display
-//   const days = []
-
-//   // Previous month days
-//   const prevMonthLastDay = new Date(today.getFullYear(), today.getMonth(), 0).getDate()
-//   for (let i = 0; i < daysFromPrevMonth; i++) {
-//     const date = new Date(today.getFullYear(), today.getMonth() - 1, prevMonthLastDay - daysFromPrevMonth + i + 1)
-//     days.push({
-//       date,
-//       dayNumber: date.getDate(),
-//       month: date.toLocaleDateString("en-US", { month: "short" }),
-//       isCurrentMonth: false,
-//       isToday: date.toDateString() === today.toDateString(),
-//       slots: Array.from({ length: 2 }, (_, j) => ({
-//         id: `month-prev-${i}-${j}`,
-//         time: `${12 + j * 6}:00`,
-//         post: null,
-//       })),
-//     })
-//   }
-
-//   // Current month days
-//   for (let i = 1; i <= lastDay.getDate(); i++) {
-//     const date = new Date(today.getFullYear(), today.getMonth(), i)
-//     days.push({
-//       date,
-//       dayNumber: i,
-//       month: date.toLocaleDateString("en-US", { month: "short" }),
-//       isCurrentMonth: true,
-//       isToday: date.toDateString() === today.toDateString(),
-//       slots: Array.from({ length: 2 }, (_, j) => ({
-//         id: `month-current-${i}-${j}`,
-//         time: `${12 + j * 6}:00`,
-//         post: null,
-//       })),
-//     })
-//   }
-
-//   // Next month days to fill the grid
-//   const remainingDays = rows * 7 - days.length
-//   for (let i = 1; i <= remainingDays; i++) {
-//     const date = new Date(today.getFullYear(), today.getMonth() + 1, i)
-//     days.push({
-//       date,
-//       dayNumber: i,
-//       month: date.toLocaleDateString("en-US", { month: "short" }),
-//       isCurrentMonth: false,
-//       isToday: date.toDateString() === today.toDateString(),
-//       slots: Array.from({ length: 2 }, (_, j) => ({
-//         id: `month-next-${i}-${j}`,
-//         time: `${12 + j * 6}:00`,
-//         post: null,
-//       })),
-//     })
-//   }
-
-//   return days
-// }
-
-// export default function SchedulerPage() {
-//   const [unscheduledPosts, setUnscheduledPosts] = useState<Post[]>([])
-//   const [brandKits, setBrandKits] = useState<BrandKit[]>([])
-//   const [selectedBrandKitId, setSelectedBrandKitId] = useState<string>("")
-//   const [weekDays, setWeekDays] = useState(generateWeekDays())
-//   const [monthDays, setMonthDays] = useState(generateMonthDays())
-//   const [isConnected, setIsConnected] = useState(false)
-//   const [viewMode, setViewMode] = useState<"week" | "month">("week")
-//   const [currentDate, setCurrentDate] = useState(new Date())
-
-//   useEffect(() => {
-//     async function loadBrandKitsAndPosts() {
-//       const kitsRaw = await getBrandKits();
-//       const kits = (kitsRaw || []).filter(
-//         (k: any): k is BrandKit =>
-//           k && typeof k === 'object' && typeof k.id === 'string' && typeof k.name === 'string'
-//       ) as unknown as BrandKit[];
-//       setBrandKits(kits);
-//       if (kits.length > 0) {
-//         setSelectedBrandKitId(kits[0].id);
-//         const postsRaw = await getPosts(kits[0].id);
-//         const posts = (postsRaw || []).filter(
-//           (p: any): p is Post =>
-//             p && typeof p === 'object' && typeof p.id === 'string' && typeof p.caption === 'string' && typeof p.image_url === 'string'
-//         ) as unknown as Post[];
-//         setUnscheduledPosts(posts);
-//       }
-//     }
-//     loadBrandKitsAndPosts();
-//   }, []);
-
-//   useEffect(() => {
-//     if (!selectedBrandKitId) return;
-//     async function loadPosts() {
-//       const postsRaw = await getPosts(selectedBrandKitId);
-//       const posts = (postsRaw || []).filter(
-//         (p: any): p is Post =>
-//           p && typeof p === 'object' && typeof p.id === 'string' && typeof p.caption === 'string' && typeof p.image_url === 'string'
-//       ) as unknown as Post[];
-//       setUnscheduledPosts(posts);
-//     }
-//     loadPosts();
-//   }, [selectedBrandKitId]);
-
-//   const handleDragEnd = (result: any) => {
-//     const { source, destination } = result
-
-//     // Dropped outside the list
-//     if (!destination) {
-//       return
-//     }
-
-//     // Handle different drag and drop scenarios
-//     if (source.droppableId === "unscheduled-posts") {
-//       // Moving from unscheduled posts to calendar
-//       if (destination.droppableId !== "unscheduled-posts") {
-//         // Copy the post
-//         const sourcePost = unscheduledPosts[source.index]
-
-//         // Remove from unscheduled posts
-//         const newUnscheduledPosts = [...unscheduledPosts]
-//         newUnscheduledPosts.splice(source.index, 1)
-//         setUnscheduledPosts(newUnscheduledPosts)
-
-//         // Update the calendar slot
-//         if (viewMode === "week") {
-//           const [dayIndex, slotIndex] = destination.droppableId.split("-").slice(1).map(Number)
-//           const newWeekDays = [...weekDays]
-//           newWeekDays[dayIndex].slots[slotIndex].post = sourcePost && typeof sourcePost === 'object' && typeof sourcePost.id === 'string' ? sourcePost : null;
-//           setWeekDays(newWeekDays)
-//         } else {
-//           // Handle month view
-//           const parts = destination.droppableId.split("-")
-//           const monthType = parts[1] // prev, current, or next
-//           const dayIndex = Number.parseInt(parts[2])
-//           const slotIndex = Number.parseInt(parts[3])
-
-//           const newMonthDays = [...monthDays]
-//           let targetIndex = 0
-
-//           if (monthType === "prev") {
-//             targetIndex = dayIndex
-//           } else if (monthType === "current") {
-//             targetIndex = dayIndex - 1
-//           } else {
-//             const today = new Date()
-//             const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-//             targetIndex = newMonthDays.length - (lastDay.getDate() - dayIndex) - 1
-//           }
-
-//           newMonthDays[targetIndex].slots[slotIndex].post = sourcePost && typeof sourcePost === 'object' && typeof sourcePost.id === 'string' ? sourcePost : null;
-//           setMonthDays(newMonthDays)
-//         }
-//       }
-//     } else {
-//       // Moving from calendar to unscheduled posts or another calendar slot
-//       // This would require more complex logic to handle both week and month views
-//       // For simplicity, we'll just implement the basic functionality
-//     }
-//   }
-
-//   const goToToday = () => {
-//     setCurrentDate(new Date())
-//     setWeekDays(generateWeekDays())
-//     setMonthDays(generateMonthDays())
-//   }
-
-//   const navigatePrevious = () => {
-//     const newDate = new Date(currentDate)
-//     if (viewMode === "week") {
-//       newDate.setDate(newDate.getDate() - 7)
-//     } else {
-//       newDate.setMonth(newDate.getMonth() - 1)
-//     }
-//     setCurrentDate(newDate)
-//     // In a real app, you would regenerate the days based on the new date
-//   }
-
-//   const navigateNext = () => {
-//     const newDate = new Date(currentDate)
-//     if (viewMode === "week") {
-//       newDate.setDate(newDate.getDate() + 7)
-//     } else {
-//       newDate.setMonth(newDate.getMonth() + 1)
-//     }
-//     setCurrentDate(newDate)
-//     // In a real app, you would regenerate the days based on the new date
-//   }
-
-//   return (
-//     <div className="flex h-screen flex-col overflow-hidden">
-//       {/* Top Navigation Bar */}
-//       <header className="border-b bg-white px-4 py-3 shadow-sm dark:bg-gray-950">
-//         <div className="flex flex-wrap items-center justify-between gap-4">
-//           <div className="flex items-center gap-2">
-//             {/* Brand Kit Selector */}
-//             <Select value={selectedBrandKitId} onValueChange={setSelectedBrandKitId}>
-//               <SelectTrigger className="w-[180px]">
-//                 {/* <span className="mr-2">Brand Kit:</span> */}
-//                 <SelectValue placeholder="Select Brand Kit" />
-//               </SelectTrigger>
-//               <SelectContent>
-//                 {brandKits.map((kit) => (
-//                   <SelectItem key={kit.id} value={kit.id}>{kit.name}</SelectItem>
-//                 ))}
-//               </SelectContent>
-//             </Select>
-//             <Button variant="outline" size="sm" onClick={goToToday}>
-//               Today
-//             </Button>
-//             <div className="flex items-center gap-1">
-//               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigatePrevious}>
-//                 <ChevronLeft className="h-4 w-4" />
-//               </Button>
-//               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigateNext}>
-//                 <ChevronRight className="h-4 w-4" />
-//               </Button>
-//             </div>
-//             <h2 className="text-lg font-semibold">
-//               {currentDate.toLocaleDateString("en-US", {
-//                 month: "long",
-//                 year: "numeric",
-//                 ...(viewMode === "week" ? { day: "numeric" } : {}),
-//               })}
-//             </h2>
-//           </div>
-
-//           <div className="flex items-center gap-3">
-//             <Select value={viewMode} onValueChange={(value: "week" | "month") => setViewMode(value)}>
-//               <SelectTrigger className="w-[140px]">
-//                 <Calendar className="mr-2 h-4 w-4" />
-//                 <SelectValue placeholder="View" />
-//               </SelectTrigger>
-//               <SelectContent>
-//                 <SelectItem value="week">Week View</SelectItem>
-//                 <SelectItem value="month">Month View</SelectItem>
-//               </SelectContent>
-//             </Select>
-
-//             <Button
-//               onClick={() => setIsConnected(!isConnected)}
-//               variant={isConnected ? "outline" : "default"}
-//               className="flex items-center gap-2"
-//             >
-//               <Instagram className="h-4 w-4" />
-//               {isConnected ? "Instagram Connected" : "Connect Instagram"}
-//             </Button>
-//           </div>
-//         </div>
-//       </header>
-
-//       {/* Main Content Area */}
-//       <div className="flex flex-1 overflow-hidden">
-//         {/* Sidebar */}
-//         <aside className="flex w-72 flex-col border-r bg-gray-50 dark:bg-gray-900">
-//           <div className="p-4">
-//             <h3 className="mb-2 font-semibold">Unscheduled Posts</h3>
-//             <p className="text-sm text-muted-foreground">Drag posts to schedule them</p>
-//           </div>
-
-//           <DragDropContext onDragEnd={handleDragEnd}>
-//             <Droppable droppableId="unscheduled-posts">
-//               {(provided) => (
-//                 <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 overflow-y-auto p-4">
-//                   <div className="space-y-3">
-//                     {unscheduledPosts.filter((post) => post && typeof post === 'object' && typeof post.id === 'string').map((post, index) => (
-//                       <Draggable key={post.id} draggableId={post.id} index={index}>
-//                         {(provided, snapshot) => (
-//                           <div
-//                             ref={provided.innerRef}
-//                             {...provided.draggableProps}
-//                             {...provided.dragHandleProps}
-//                             className={`group cursor-grab rounded-lg border bg-card p-3 shadow-sm transition-all ${
-//                               snapshot.isDragging ? "rotate-1 scale-105 shadow-md" : ""
-//                             }`}
-//                           >
-//                             <div className="flex gap-3">
-//                               <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md">
-//                                 <Image
-//                                   src={post.image_url || "/placeholder.svg"}
-//                                   alt={`Post ${post.id}`}
-//                                   fill
-//                                   className="object-cover"
-//                                 />
-//                               </div>
-//                               <div className="flex-1">
-//                                 <p className="text-sm line-clamp-2">{post.caption}</p>
-//                                 <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-//                                   <span>Drag to schedule</span>
-//                                 </div>
-//                               </div>
-//                             </div>
-//                           </div>
-//                         )}
-//                       </Draggable>
-//                     ))}
-//                     {provided.placeholder}
-//                   </div>
-//                 </div>
-//               )}
-//             </Droppable>
-//           </DragDropContext>
-
-//           <div className="border-t p-4">
-//             <Button className="w-full" size="sm">
-//               <Plus className="mr-2 h-4 w-4" />
-//               Add Post
-//             </Button>
-//           </div>
-//         </aside>
-
-//         {/* Calendar Area */}
-//         <main className="flex-1 overflow-auto bg-white p-4 dark:bg-gray-950">
-//           <DragDropContext onDragEnd={handleDragEnd}>
-//             {viewMode === "week" ? (
-//               /* Week View */
-//               <div className="grid h-full grid-cols-7 gap-4">
-//                 {weekDays.map((day, dayIndex) => (
-//                   <div
-//                     key={`day-${dayIndex}`}
-//                     className={`flex flex-col rounded-lg border ${day.isToday ? "border-primary bg-primary/5" : ""}`}
-//                   >
-//                     <div className={`p-2 text-center ${day.isToday ? "font-bold text-primary" : ""}`}>
-//                       <p className="text-sm font-medium">{day.dayName}</p>
-//                       <p className="text-xl">{day.dayNumber}</p>
-//                       <p className="text-xs text-muted-foreground">{day.month}</p>
-//                     </div>
-
-//                     <div className="flex flex-1 flex-col gap-3 p-2">
-//                       {day.slots.map((slot, slotIndex) => (
-//                         <Droppable key={slot.id} droppableId={`slot-${dayIndex}-${slotIndex}`}>
-//                           {(provided, snapshot) => (
-//                             <div
-//                               ref={provided.innerRef}
-//                               {...provided.droppableProps}
-//                               className={`flex min-h-[100px] flex-col rounded-md border p-2 transition-colors ${
-//                                 snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : ""
-//                               }`}
-//                             >
-//                               <div className="mb-1 flex items-center text-xs font-medium text-muted-foreground">
-//                                 <Clock className="mr-1 h-3 w-3" />
-//                                 {slot.time}
-//                               </div>
-
-//                               {slot.post && typeof slot.post === 'object' && typeof slot.post.id === 'string' ? (
-//                                 <Draggable draggableId={`scheduled-${slot.post.id}`} index={0}>
-//                                   {(provided, snapshot) => (
-//                                     <div
-//                                       ref={provided.innerRef}
-//                                       {...provided.draggableProps}
-//                                       {...provided.dragHandleProps}
-//                                       className={`group flex flex-col gap-2 rounded-md bg-white p-2 shadow-sm transition-all dark:bg-gray-800 ${
-//                                         snapshot.isDragging ? "rotate-1 scale-105 shadow-md" : ""
-//                                       }`}
-//                                     >
-//                                       <div className="relative h-12 w-full overflow-hidden rounded-md">
-//                                         <Image
-//                                           src={slot.post.image_url || "/placeholder.svg"}
-//                                           alt={`Post ${slot.post.id}`}
-//                                           fill
-//                                           className="object-cover"
-//                                         />
-//                                         <div className="absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100">
-//                                           <Button
-//                                             variant="ghost"
-//                                             size="icon"
-//                                             className="h-6 w-6 bg-white/80 backdrop-blur-sm dark:bg-gray-800/80"
-//                                           >
-//                                             <Edit2 className="h-3 w-3" />
-//                                           </Button>
-//                                           <Button
-//                                             variant="ghost"
-//                                             size="icon"
-//                                             className="h-6 w-6 bg-white/80 backdrop-blur-sm dark:bg-gray-800/80"
-//                                           >
-//                                             <Trash2 className="h-3 w-3" />
-//                                           </Button>
-//                                         </div>
-//                                       </div>
-//                                       <p className="text-xs line-clamp-2">{slot.post.caption}</p>
-//                                     </div>
-//                                   )}
-//                                 </Draggable>
-//                               ) : (
-//                                 <div className="flex flex-1 items-center justify-center rounded-md border border-dashed p-2 text-xs text-muted-foreground">
-//                                   Drop post here
-//                                 </div>
-//                               )}
-//                               {provided.placeholder}
-//                             </div>
-//                           )}
-//                         </Droppable>
-//                       ))}
-//                     </div>
-//                   </div>
-//                 ))}
-//               </div>
-//             ) : (
-//               /* Month View */
-//               <div className="grid grid-cols-7 gap-1">
-//                 {/* Day headers */}
-//                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-//                   <div key={day} className="p-2 text-center text-sm font-medium">
-//                     {day}
-//                   </div>
-//                 ))}
-
-//                 {/* Calendar days */}
-//                 {monthDays.map((day, index) => (
-//                   <div
-//                     key={`month-day-${index}`}
-//                     className={`min-h-[120px] border p-1 ${
-//                       day.isToday
-//                         ? "border-primary bg-primary/5"
-//                         : day.isCurrentMonth
-//                           ? ""
-//                           : "bg-gray-50 opacity-50 dark:bg-gray-900"
-//                     }`}
-//                   >
-//                     <div className={`mb-1 text-right text-sm ${day.isToday ? "font-bold text-primary" : ""}`}>
-//                       {day.dayNumber}
-//                     </div>
-
-//                     <div className="flex flex-col gap-1">
-//                       {day.slots.map((slot, slotIndex) => (
-//                         <Droppable
-//                           key={`${index}-${slotIndex}`}
-//                           droppableId={`month-${day.isCurrentMonth ? "current" : day.dayNumber < 15 ? "prev" : "next"}-${day.dayNumber}-${slotIndex}`}
-//                         >
-//                           {(provided, snapshot) => (
-//                             <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[40px]">
-//                               {slot.post && typeof slot.post === 'object' && typeof slot.post.id === 'string' ? (
-//                                 <Draggable
-//                                   draggableId={`month-scheduled-${slot.post.id}-${index}-${slotIndex}`}
-//                                   index={0}
-//                                 >
-//                                   {(provided, snapshot) => (
-//                                     <div
-//                                       ref={provided.innerRef}
-//                                       {...provided.draggableProps}
-//                                       {...provided.dragHandleProps}
-//                                       className="group flex items-center gap-1 rounded bg-white p-1 text-xs shadow-sm dark:bg-gray-800"
-//                                     >
-//                                       <div className="relative h-6 w-6 flex-shrink-0 overflow-hidden rounded">
-//                                         <Image
-//                                           src={slot.post.image_url || "/placeholder.svg"}
-//                                           alt={`Post ${slot.post.id}`}
-//                                           fill
-//                                           className="object-cover"
-//                                         />
-//                                       </div>
-//                                       <span className="flex-1 truncate">{slot.time}</span>
-//                                       <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
-//                                         <Button variant="ghost" size="icon" className="h-4 w-4">
-//                                           <Edit2 className="h-2 w-2" />
-//                                         </Button>
-//                                         <Button variant="ghost" size="icon" className="h-4 w-4">
-//                                           <Trash2 className="h-2 w-2" />
-//                                         </Button>
-//                                       </div>
-//                                     </div>
-//                                   )}
-//                                 </Draggable>
-//                               ) : (
-//                                 <div className="hidden h-[40px] items-center justify-center rounded border border-dashed text-[10px] text-muted-foreground hover:flex">
-//                                   {slot.time}
-//                                 </div>
-//                               )}
-//                               {provided.placeholder}
-//                             </div>
-//                           )}
-//                         </Droppable>
-//                       ))}
-//                     </div>
-//                   </div>
-//                 ))}
-//               </div>
-//             )}
-//           </DragDropContext>
-//         </main>
-//       </div>
-//     </div>
-//   )
-// }
 "use client"
 
 import { useState, useEffect } from "react"
@@ -545,11 +5,13 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronLeft, ChevronRight, Calendar, Plus, Instagram, Edit2, Trash2, Clock } from "lucide-react"
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 import { createClient } from "@/lib/supabase/client"
-import type { Post, BrandKit } from "@/lib/supabase/database.types"
+import type { Post, BrandKit, Database } from "@/lib/supabase/database.types"
 import { getBrandKits } from "@/lib/actions/brand-kits"
 import { getPosts } from "@/lib/actions/posts"
+import { Input } from "@/components/ui/input"
+import type { Database as SupabaseDatabase } from "@/lib/supabase/database.types"
 
 // Generate days for the week based on a given date
 const generateWeekDays = (currentDate = new Date()) => {
@@ -568,9 +30,9 @@ const generateWeekDays = (currentDate = new Date()) => {
       month: date.toLocaleDateString("en-US", { month: "short" }),
       isToday: date.toDateString() === new Date().toDateString(),
       slots: Array.from({ length: 4 }, (_, j) => ({
-        id: `slot-${i}-${j}`,
+        id: `slot-${i}-${j}-${Date.now()}`,
         time: `${9 + j * 3}:00`,
-        post: null,
+        post: null as Post | null,
       })),
     }
   })
@@ -599,9 +61,9 @@ const generateMonthDays = (currentDate = new Date()) => {
       isCurrentMonth: false,
       isToday: date.toDateString() === new Date().toDateString(),
       slots: Array.from({ length: 2 }, (_, j) => ({
-        id: `month-prev-${date.getDate()}-${j}`,
+        id: `month-prev-${date.getDate()}-${j}-${Date.now()}`,
         time: `${12 + j * 6}:00`,
-        post: null,
+        post: null as Post | null,
       })),
     })
   }
@@ -615,9 +77,9 @@ const generateMonthDays = (currentDate = new Date()) => {
       isCurrentMonth: true,
       isToday: date.toDateString() === new Date().toDateString(),
       slots: Array.from({ length: 2 }, (_, j) => ({
-        id: `month-current-${i}-${j}`,
+        id: `month-current-${i}-${j}-${Date.now()}`,
         time: `${12 + j * 6}:00`,
-        post: null,
+        post: null as Post | null,
       })),
     })
   }
@@ -632,14 +94,96 @@ const generateMonthDays = (currentDate = new Date()) => {
       isCurrentMonth: false,
       isToday: date.toDateString() === new Date().toDateString(),
       slots: Array.from({ length: 2 }, (_, j) => ({
-        id: `month-next-${i}-${j}`,
+        id: `month-next-${i}-${j}-${Date.now()}`,
         time: `${12 + j * 6}:00`,
-        post: null,
+        post: null as Post | null,
       })),
     })
   }
 
   return days
+}
+
+// Function to check if a date is in the past
+const isPastDate = (date: Date) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return date < today
+}
+
+// Fetch scheduled posts from Supabase (now from posts table)
+const fetchScheduledPosts = async (brandKitId: string): Promise<Post[]> => {
+  const supabase = createClient()
+  let query = supabase.from('posts').select('*')
+  if (typeof brandKitId === 'string') {
+    query = query.eq('brand_kit_id', brandKitId as any)
+  }
+  query = query.not('scheduled_for', 'is', null)
+  const { data, error } = await query
+  if (error || !Array.isArray(data)) {
+    console.error('Error fetching scheduled posts:', error)
+    return []
+  }
+  return data.filter(isPost)
+}
+
+// Save scheduled post to Supabase (update post's scheduled_for and status)
+// NOTE: For true EST-only storage, use 'timestamp without time zone' in your DB for scheduled_for
+const saveScheduledPost = async (postId: string, date: string, time: string, brandKitId: string) => {
+  const supabase = createClient()
+  if (typeof postId !== 'string' || typeof brandKitId !== 'string') return
+  const safeTime = time && /^\d{2}:\d{2}$/.test(time) ? time : "09:00"
+  const safeDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().split('T')[0]
+  // Save as plain string, no Date object, no timezone
+  const scheduledFor = `${safeDate} ${safeTime}:00`
+  const updateObj: Database["public"]["Tables"]["posts"]["Update"] = {
+    scheduled_for: scheduledFor,
+    status: 'scheduled',
+  }
+  const { error } = await supabase
+    .from('posts')
+    .update(updateObj)
+    .eq('id', postId as any)
+    .eq('brand_kit_id', brandKitId as any)
+  if (error) {
+    console.error('Error saving scheduled post:', error)
+  }
+}
+
+// Remove scheduled post from Supabase (set scheduled_for to null and status to unscheduled)
+const removeScheduledPost = async (postId: string, brandKitId: string) => {
+  const supabase = createClient()
+  if (typeof postId !== 'string' || typeof brandKitId !== 'string') return
+  const updateObj: Database["public"]["Tables"]["posts"]["Update"] = {
+    scheduled_for: null,
+    status: 'unscheduled',
+  }
+  const { error } = await supabase
+    .from('posts')
+    .update(updateObj)
+    .eq('id', postId as any)
+    .eq('brand_kit_id', brandKitId as any)
+  if (error) {
+    console.error('Error removing scheduled post:', error)
+  }
+}
+
+// Type guards
+function isBrandKit(obj: any): obj is BrandKit {
+  return obj && typeof obj === 'object' && typeof obj.id === 'string' && typeof obj.name === 'string';
+}
+function isPost(obj: any): obj is Post {
+  return obj && typeof obj === 'object' && typeof obj.id === 'string' && typeof obj.caption === 'string' && typeof obj.image_url === 'string';
+}
+
+// Helper: Convert UTC ISO string to 24-hour EST string (HH:MM)
+function utcToEst24Hour(utcIso: string) {
+  if (!utcIso) return "";
+  const utcDate = new Date(utcIso);
+  // Subtract 5 hours for EST
+  utcDate.setUTCHours(utcDate.getUTCHours() - 5);
+  // Format as 24-hour time
+  return utcDate.toISOString().slice(11, 16); // "HH:MM"
 }
 
 export default function SchedulerPage() {
@@ -651,44 +195,106 @@ export default function SchedulerPage() {
   const [isConnected, setIsConnected] = useState(false)
   const [viewMode, setViewMode] = useState<"week" | "month">("week")
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+  const [loading, setLoading] = useState(false)
 
+  // Centralized fetch function
+  const fetchAndSync = async (brandKitId: string, date: Date) => {
+    setLoading(true)
+    const postsRaw = await getPosts(brandKitId)
+    const posts = Array.isArray(postsRaw) ? postsRaw.filter(isPost) : []
+    const scheduledPostsRaw = await fetchScheduledPosts(brandKitId)
+    const scheduledPosts = Array.isArray(scheduledPostsRaw) ? scheduledPostsRaw.filter(isPost) : []
+    const scheduledPostIds = scheduledPosts.map(sp => sp.id)
+    setUnscheduledPosts(posts.filter(isPost).filter(p => !scheduledPostIds.includes(p.id)))
+    const newWeekDays = generateWeekDays(date)
+    const newMonthDays = generateMonthDays(date)
+    // Map scheduled posts into slots
+    scheduledPosts.forEach((post) => {
+      if (!isPost(post) || !post.scheduled_for) return;
+      // scheduled_for = 'YYYY-MM-DD HH:MM:00+00' or 'YYYY-MM-DD HH:MM:00-05:00' or 'YYYY-MM-DD HH:MM:00'
+      const [dateStr, timeStrRaw] = post.scheduled_for.split(' ');
+      // Remove timezone info (e.g., +00, -05:00, Z) from time part
+      const timeStr = timeStrRaw ? timeStrRaw.replace(/([\+\-Z].*)$/, '') : '';
+      const time = timeStr ? timeStr.slice(0, 5) : '';
+      // Week view
+      newWeekDays.forEach(day => {
+        const dayDateStr = day.date.toISOString().split('T')[0];
+        if (dayDateStr === dateStr) {
+          let slot = day.slots.find(s => s.time === time)
+          if (!slot) {
+            slot = { id: `slot-${day.dayNumber}-${time}`, time, post: null }
+            day.slots.push(slot)
+          }
+          slot.post = post
+        }
+      })
+      // Month view
+      newMonthDays.forEach(day => {
+        const dayDateStr = day.date.toISOString().split('T')[0];
+        if (dayDateStr === dateStr) {
+          let slot = day.slots.find(s => s.time === time)
+          if (!slot) {
+            slot = { id: `month-slot-${day.dayNumber}-${time}`, time, post: null }
+            day.slots.push(slot)
+          }
+          slot.post = post
+        }
+      })
+    })
+    setWeekDays(newWeekDays)
+    setMonthDays(newMonthDays)
+    setLoading(false)
+  }
+
+  // Load brand kits on mount
   useEffect(() => {
-    async function loadBrandKitsAndPosts() {
+    async function loadBrandKits() {
       const kitsRaw = await getBrandKits()
-      const kits = (kitsRaw || []).filter(
-        (k) => k && typeof k === 'object' && typeof k.id === 'string' && typeof k.name === 'string'
-      )
+      const kits = Array.isArray(kitsRaw) ? kitsRaw.filter(isBrandKit) : []
       setBrandKits(kits)
-      if (kits.length > 0) {
-        setSelectedBrandKitId(kits[0].id)
-        const postsRaw = await getPosts(kits[0].id)
-        const posts = (postsRaw || []).filter(
-          (p) => p && typeof p === 'object' && typeof p.id === 'string' && typeof p.caption === 'string' && typeof p.image_url === 'string'
-        )
-        setUnscheduledPosts(posts)
+      const firstKit = kits.find(isBrandKit)
+      if (firstKit && typeof firstKit.id === 'string') {
+        setSelectedBrandKitId(firstKit.id)
       }
     }
-    loadBrandKitsAndPosts()
+    loadBrandKits()
   }, [])
 
+  // Fetch and sync whenever brand kit or current date changes
   useEffect(() => {
     if (!selectedBrandKitId) return
-    async function loadPosts() {
-      const postsRaw = await getPosts(selectedBrandKitId)
-      const posts = (postsRaw || []).filter(
-        (p) => p && typeof p === 'object' && typeof p.id === 'string' && typeof p.caption === 'string' && typeof p.image_url === 'string'
-      )
-      setUnscheduledPosts(posts)
+    fetchAndSync(selectedBrandKitId, currentDate)
+  }, [selectedBrandKitId, currentDate])
+
+  // Navigation handlers
+  const goToToday = () => setCurrentDate(new Date())
+  const navigatePrevious = () => {
+    const newDate = new Date(currentDate)
+    if (viewMode === "week") {
+      newDate.setDate(newDate.getDate() - 7)
+    } else {
+      newDate.setMonth(newDate.getMonth() - 1)
     }
-    loadPosts()
-  }, [selectedBrandKitId])
+    setCurrentDate(newDate)
+  }
+  const navigateNext = () => {
+    const newDate = new Date(currentDate)
+    if (viewMode === "week") {
+      newDate.setDate(newDate.getDate() + 7)
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1)
+    }
+    setCurrentDate(newDate)
+  }
 
-  useEffect(() => {
-    setWeekDays(generateWeekDays(currentDate))
-    setMonthDays(generateMonthDays(currentDate))
-  }, [currentDate])
+  // Day selection handler
+  const handleDayClick = (date: Date) => {
+    setSelectedDay(date)
+  }
 
-  const handleDragEnd = (result) => {
+  // Drag and drop handler (to be further improved for animation and slot highlight)
+  const handleDragEnd = (result: DropResult) => {
     const { source, destination } = result
 
     if (!destination) return
@@ -700,118 +306,126 @@ export default function SchedulerPage() {
       setUnscheduledPosts(newUnscheduledPosts)
 
       if (viewMode === "week") {
-        const [_, dayIndex, slotIndex] = destination.droppableId.split("-")
+        const [_, dayIndexStr, slotIndexStr] = destination.droppableId.split("-")
+        const dayIndex = parseInt(dayIndexStr, 10)
+        const slotIndex = parseInt(slotIndexStr, 10)
         const newWeekDays = [...weekDays]
         newWeekDays[dayIndex].slots[slotIndex].post = post
         setWeekDays(newWeekDays)
+        const date = newWeekDays[dayIndex].date.toISOString().split('T')[0]
+        const time = newWeekDays[dayIndex].slots[slotIndex].time
+        if (post) saveScheduledPost(post.id, date, time, selectedBrandKitId)
       } else {
-        const [_, monthType, dayNumber, slotIndex] = destination.droppableId.split("-")
+        const [_, dayIndexStr, slotIndexStr] = destination.droppableId.split("-")
+        const dayIndex = parseInt(dayIndexStr, 10)
+        const slotIndex = parseInt(slotIndexStr, 10)
         const newMonthDays = [...monthDays]
-        const dayIndex = newMonthDays.findIndex(d => 
-          (monthType === "current" && d.isCurrentMonth && d.dayNumber === Number(dayNumber)) ||
-          (monthType === "prev" && !d.isCurrentMonth && d.dayNumber === Number(dayNumber) && d.date.getMonth() === currentDate.getMonth() - 1) ||
-          (monthType === "next" && !d.isCurrentMonth && d.dayNumber === Number(dayNumber) && d.date.getMonth() === currentDate.getMonth() + 1)
-        )
-        if (dayIndex !== -1) {
+        if (!newMonthDays[dayIndex].slots[slotIndex].post) {
           newMonthDays[dayIndex].slots[slotIndex].post = post
           setMonthDays(newMonthDays)
+          const date = newMonthDays[dayIndex].date.toISOString().split('T')[0]
+          const time = newMonthDays[dayIndex].slots[slotIndex].time
+          if (post) saveScheduledPost(post.id, date, time, selectedBrandKitId)
         }
       }
     } else if (destination.droppableId === "unscheduled-posts") {
       let post
       if (viewMode === "week") {
-        const [_, dayIndex, slotIndex] = source.droppableId.split("-")
+        const [_, dayIndexStr, slotIndexStr] = source.droppableId.split("-")
+        const dayIndex = parseInt(dayIndexStr, 10)
+        const slotIndex = parseInt(slotIndexStr, 10)
         const newWeekDays = [...weekDays]
         post = newWeekDays[dayIndex].slots[slotIndex].post
         newWeekDays[dayIndex].slots[slotIndex].post = null
         setWeekDays(newWeekDays)
+        if (post) removeScheduledPost(post.id, selectedBrandKitId)
       } else {
-        const [_, monthType, dayNumber, slotIndex] = source.droppableId.split("-")
+        const [_, dayIndexStr, slotIndexStr] = source.droppableId.split("-")
+        const dayIndex = parseInt(dayIndexStr, 10)
+        const slotIndex = parseInt(slotIndexStr, 10)
         const newMonthDays = [...monthDays]
-        const dayIndex = newMonthDays.findIndex(d => 
-          (monthType === "current" && d.isCurrentMonth && d.dayNumber === Number(dayNumber)) ||
-          (monthType === "prev" && !d.isCurrentMonth && d.dayNumber === Number(dayNumber) && d.date.getMonth() === currentDate.getMonth() - 1) ||
-          (monthType === "next" && !d.isCurrentMonth && d.dayNumber === Number(dayNumber) && d.date.getMonth() === currentDate.getMonth() + 1)
-        )
-        if (dayIndex !== -1) {
-          post = newMonthDays[dayIndex].slots[slotIndex].post
-          newMonthDays[dayIndex].slots[slotIndex].post = null
-          setMonthDays(newMonthDays)
-        }
+        post = newMonthDays[dayIndex].slots[slotIndex].post
+        newMonthDays[dayIndex].slots[slotIndex].post = null
+        setMonthDays(newMonthDays)
+        if (post) removeScheduledPost(post.id, selectedBrandKitId)
       }
       if (post) setUnscheduledPosts([...unscheduledPosts, post])
     } else {
-      // Moving between calendar slots
-      let sourcePost, sourceDayIndex, sourceSlotIndex
+      let sourcePost
       if (viewMode === "week") {
-        const [_, sDayIndex, sSlotIndex] = source.droppableId.split("-")
+        const [_, sDayIndexStr, sSlotIndexStr] = source.droppableId.split("-")
+        const [__, dDayIndexStr, dSlotIndexStr] = destination.droppableId.split("-")
+        const sDayIndex = parseInt(sDayIndexStr, 10)
+        const sSlotIndex = parseInt(sSlotIndexStr, 10)
+        const dDayIndex = parseInt(dDayIndexStr, 10)
+        const dSlotIndex = parseInt(dSlotIndexStr, 10)
         const newWeekDays = [...weekDays]
         sourcePost = newWeekDays[sDayIndex].slots[sSlotIndex].post
-        sourceDayIndex = sDayIndex
-        sourceSlotIndex = sSlotIndex
         newWeekDays[sDayIndex].slots[sSlotIndex].post = null
+        newWeekDays[dDayIndex].slots[dSlotIndex].post = sourcePost
         setWeekDays(newWeekDays)
+        const date = newWeekDays[dDayIndex].date.toISOString().split('T')[0]
+        const time = newWeekDays[dDayIndex].slots[dSlotIndex].time
+        if (sourcePost) saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId)
       } else {
-        const [_, sMonthType, sDayNumber, sSlotIndex] = source.droppableId.split("-")
+        const [_, sDayIndexStr, sSlotIndexStr] = source.droppableId.split("-")
+        const [__, dDayIndexStr, dSlotIndexStr] = destination.droppableId.split("-")
+        const sDayIndex = parseInt(sDayIndexStr, 10)
+        const sSlotIndex = parseInt(sSlotIndexStr, 10)
+        const dDayIndex = parseInt(dDayIndexStr, 10)
+        const dSlotIndex = parseInt(dSlotIndexStr, 10)
         const newMonthDays = [...monthDays]
-        sourceDayIndex = newMonthDays.findIndex(d => 
-          (sMonthType === "current" && d.isCurrentMonth && d.dayNumber === Number(sDayNumber)) ||
-          (sMonthType === "prev" && !d.isCurrentMonth && d.dayNumber === Number(sDayNumber) && d.date.getMonth() === currentDate.getMonth() - 1) ||
-          (sMonthType === "next" && !d.isCurrentMonth && d.dayNumber === Number(sDayNumber) && d.date.getMonth() === currentDate.getMonth() + 1)
-        )
-        if (sourceDayIndex !== -1) {
-          sourcePost = newMonthDays[sourceDayIndex].slots[sSlotIndex].post
-          sourceSlotIndex = sSlotIndex
-          newMonthDays[sourceDayIndex].slots[sSlotIndex].post = null
-          setMonthDays(newMonthDays)
-        }
-      }
-
-      if (sourcePost) {
-        if (viewMode === "week") {
-          const [_, dDayIndex, dSlotIndex] = destination.droppableId.split("-")
-          const newWeekDays = [...weekDays]
-          newWeekDays[dDayIndex].slots[dSlotIndex].post = sourcePost
-          setWeekDays(newWeekDays)
-        } else {
-          const [_, dMonthType, dDayNumber, dSlotIndex] = destination.droppableId.split("-")
-          const newMonthDays = [...monthDays]
-          const destDayIndex = newMonthDays.findIndex(d => 
-            (dMonthType === "current" && d.isCurrentMonth && d.dayNumber === Number(dDayNumber)) ||
-            (dMonthType === "prev" && !d.isCurrentMonth && d.dayNumber === Number(dDayNumber) && d.date.getMonth() === currentDate.getMonth() - 1) ||
-            (dMonthType === "next" && !d.isCurrentMonth && d.dayNumber === Number(dDayNumber) && d.date.getMonth() === currentDate.getMonth() + 1)
-          )
-          if (destDayIndex !== -1) {
-            newMonthDays[destDayIndex].slots[dSlotIndex].post = sourcePost
-            setMonthDays(newMonthDays)
-          }
-        }
+        sourcePost = newMonthDays[sDayIndex].slots[sSlotIndex].post
+        newMonthDays[sDayIndex].slots[sSlotIndex].post = null
+        newMonthDays[dDayIndex].slots[dSlotIndex].post = sourcePost
+        setMonthDays(newMonthDays)
+        const date = newMonthDays[dDayIndex].date.toISOString().split('T')[0]
+        const time = newMonthDays[dDayIndex].slots[dSlotIndex].time
+        if (sourcePost) saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId)
       }
     }
   }
 
-  const goToToday = () => {
-    setCurrentDate(new Date())
+  const addSlot = (dayIndex: number, view: 'week' | 'month') => {
+    if (view === "week") {
+      const newWeekDays = [...weekDays]
+      const newSlot = {
+        id: `slot-${dayIndex}-${newWeekDays[dayIndex].slots.length}-${Date.now()}`,
+        time: "12:00",
+        post: null as Post | null,
+      }
+      newWeekDays[dayIndex].slots.push(newSlot)
+      setWeekDays(newWeekDays)
+    } else {
+      const newMonthDays = [...monthDays]
+      const newSlot = {
+        id: `month-${dayIndex}-${newMonthDays[dayIndex].slots.length}-${Date.now()}`,
+        time: "12:00",
+        post: null as Post | null,
+      }
+      newMonthDays[dayIndex].slots.push(newSlot)
+      setMonthDays(newMonthDays)
+    }
   }
 
-  const navigatePrevious = () => {
-    const newDate = new Date(currentDate)
-    if (viewMode === "week") {
-      newDate.setDate(newDate.getDate() - 7)
+  const updateSlotTime = (dayIndex: number, slotIndex: number, newTime: string, view: 'week' | 'month') => {
+    if (view === "week") {
+      const newWeekDays = [...weekDays]
+      newWeekDays[dayIndex].slots[slotIndex].time = newTime
+      if (newWeekDays[dayIndex].slots[slotIndex].post) {
+        const date = newWeekDays[dayIndex].date.toISOString().split('T')[0]
+        if (newWeekDays[dayIndex].slots[slotIndex].post) saveScheduledPost(newWeekDays[dayIndex].slots[slotIndex].post.id, date, newTime, selectedBrandKitId)
+      }
+      setWeekDays(newWeekDays)
     } else {
-      newDate.setMonth(newDate.getMonth() - 1)
+      const newMonthDays = [...monthDays]
+      newMonthDays[dayIndex].slots[slotIndex].time = newTime
+      if (newMonthDays[dayIndex].slots[slotIndex].post) {
+        const date = newMonthDays[dayIndex].date.toISOString().split('T')[0]
+        if (newMonthDays[dayIndex].slots[slotIndex].post) saveScheduledPost(newMonthDays[dayIndex].slots[slotIndex].post.id, date, newTime, selectedBrandKitId)
+      }
+      setMonthDays(newMonthDays)
     }
-    setCurrentDate(newDate)
-  }
-
-  const navigateNext = () => {
-    const newDate = new Date(currentDate)
-    if (viewMode === "week") {
-      newDate.setDate(newDate.getDate() + 7)
-    } else {
-      newDate.setMonth(newDate.getMonth() + 1)
-    }
-    setCurrentDate(newDate)
   }
 
   return (
@@ -848,7 +462,7 @@ export default function SchedulerPage() {
             </h2>
           </div>
           <div className="flex items-center gap-3">
-            <Select value={viewMode} onValueChange={(value) => setViewMode(value)}>
+            <Select value={viewMode} onValueChange={(value) => setViewMode(value as 'week' | 'month')}>
               <SelectTrigger className="w-[140px]">
                 <Calendar className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="View" />
@@ -920,7 +534,7 @@ export default function SchedulerPage() {
               )}
             </Droppable>
             <div className="border-t p-4">
-              <Button className="w-full" size="sm">
+              <Button className="w-full" size="sm" onClick={() => window.location.href = "/dashboard"}>
                 <Plus className="mr-2 h-4 w-4" /> Add Post
               </Button>
             </div>
@@ -942,19 +556,30 @@ export default function SchedulerPage() {
                     </div>
                     <div className="flex flex-1 flex-col gap-3 p-2">
                       {day.slots.map((slot, slotIndex) => (
-                        <Droppable key={slot.id} droppableId={`slot-${dayIndex}-${slotIndex}`}>
+                        <Droppable
+                          key={slot.id}
+                          droppableId={`slot-${dayIndex}-${slotIndex}`}
+                          isDropDisabled={isPastDate(day.date) || !!slot.post}
+                        >
                           {(provided, snapshot) => (
                             <div
                               ref={provided.innerRef}
                               {...provided.droppableProps}
                               className={`flex min-h-[100px] flex-col rounded-md border p-2 transition-colors ${
-                                snapshot.isDraggingOver ? "border-primary/50 bg-primary/5" : ""
-                              }`}
+                                snapshot.isDraggingOver && !isPastDate(day.date) && !!slot.post ? "border-primary/50 bg-primary/5" : ""
+                              } ${isPastDate(day.date) ? "opacity-50" : ""}`}
                             >
-                              <div className="mb-1 flex items-center text-xs font-medium text-muted-foreground">
-                                <Clock className="mr-1 h-3 w-3" /> {slot.time}
+                              <div className="mb-1 flex items-center gap-2">
+                                <Clock className="h-3 w-3" />
+                                <Input
+                                  type="text"
+                                  value={slot.time}
+                                  onChange={(e) => updateSlotTime(dayIndex, slotIndex, e.target.value, "week")}
+                                  className="w-16 text-xs"
+                                  disabled={isPastDate(day.date)}
+                                />
                               </div>
-                              {slot.post ? (
+                              {slot.post && (
                                 <Draggable draggableId={`scheduled-${slot.post.id}`} index={0}>
                                   {(provided, snapshot) => (
                                     <div
@@ -966,12 +591,14 @@ export default function SchedulerPage() {
                                       }`}
                                     >
                                       <div className="relative h-12 w-full overflow-hidden rounded-md">
-                                        <Image
-                                          src={slot.post.image_url || "/placeholder.svg"}
-                                          alt={`Post ${slot.post.id}`}
-                                          fill
-                                          className="object-cover"
-                                        />
+                                        {slot.post && (
+                                          <Image
+                                            src={slot.post.image_url || "/placeholder.svg"}
+                                            alt={`Post ${slot.post.id}`}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                        )}
                                         <div className="absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100">
                                           <Button
                                             variant="ghost"
@@ -989,20 +616,21 @@ export default function SchedulerPage() {
                                           </Button>
                                         </div>
                                       </div>
-                                      <p className="text-xs line-clamp-2">{slot.post.caption}</p>
+                                      {slot.post && (
+                                        <p className="text-xs line-clamp-2">{slot.post.caption}</p>
+                                      )}
                                     </div>
                                   )}
                                 </Draggable>
-                              ) : (
-                                <div className="flex flex-1 items-center justify-center rounded-md border border-dashed p-2 text-xs text-muted-foreground">
-                                  Drop post here
-                                </div>
                               )}
                               {provided.placeholder}
                             </div>
                           )}
                         </Droppable>
                       ))}
+                      <Button variant="outline" size="sm" onClick={() => addSlot(dayIndex, "week")}>
+                        Add Slot
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -1029,12 +657,17 @@ export default function SchedulerPage() {
                     <div className="flex flex-col gap-1">
                       {day.slots.map((slot, slotIndex) => (
                         <Droppable
-                          key={`${index}-${slotIndex}`}
-                          droppableId={`month-${day.isCurrentMonth ? "current" : day.date.getMonth() < currentDate.getMonth() ? "prev" : "next"}-${day.dayNumber}-${slotIndex}`}
+                          key={slot.id}
+                          droppableId={`month-${index}-${slotIndex}`}
+                          isDropDisabled={isPastDate(day.date) || !!slot.post}
                         >
                           {(provided, snapshot) => (
-                            <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[40px]">
-                              {slot.post ? (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`min-h-[40px] ${isPastDate(day.date) ? "opacity-50" : ""}`}
+                            >
+                              {slot.post && (
                                 <Draggable
                                   draggableId={`month-scheduled-${slot.post.id}-${index}-${slotIndex}`}
                                   index={0}
@@ -1044,17 +677,27 @@ export default function SchedulerPage() {
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
-                                      className="group flex items-center gap-1 rounded bg-white p-1 text-xs shadow-sm dark:bg-gray-800"
+                                      className={`group flex items-center gap-1 rounded bg-white p-1 text-xs shadow-sm dark:bg-gray-800 ${
+                                        snapshot.isDragging ? "rotate-1 scale-105" : ""
+                                      }`}
                                     >
                                       <div className="relative h-6 w-6 flex-shrink-0 overflow-hidden rounded">
-                                        <Image
-                                          src={slot.post.image_url || "/placeholder.svg"}
-                                          alt={`Post ${slot.post.id}`}
-                                          fill
-                                          className="object-cover"
-                                        />
+                                        {slot.post && (
+                                          <Image
+                                            src={slot.post.image_url || "/placeholder.svg"}
+                                            alt={`Post ${slot.post.id}`}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                        )}
                                       </div>
-                                      <span className="flex-1 truncate">{slot.time}</span>
+                                      <Input
+                                        type="text"
+                                        value={slot.time}
+                                        onChange={(e) => updateSlotTime(index, slotIndex, e.target.value, "month")}
+                                        className="w-16 text-xs"
+                                        disabled={isPastDate(day.date)}
+                                      />
                                       <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
                                         <Button variant="ghost" size="icon" className="h-4 w-4">
                                           <Edit2 className="h-2 w-2" />
@@ -1066,16 +709,15 @@ export default function SchedulerPage() {
                                     </div>
                                   )}
                                 </Draggable>
-                              ) : (
-                                <div className="hidden h-[40px] items-center justify-center rounded border border-dashed text-[10px] text-muted-foreground hover:flex">
-                                  {slot.time}
-                                </div>
                               )}
                               {provided.placeholder}
                             </div>
                           )}
                         </Droppable>
                       ))}
+                      <Button variant="outline" size="sm" onClick={() => addSlot(index, "month")}>
+                        Add Slot
+                      </Button>
                     </div>
                   </div>
                 ))}
