@@ -6,6 +6,7 @@ import { getCurrentUser } from "./auth"
 import { getBrandKit } from "./brand-kits"
 import { generateCaption, generateImageWithGPTImage1, generateImageWithLogoEdit, downloadImageToBuffer } from "@/lib/openai"
 import type { Database, BrandKit } from "@/lib/supabase/database.types"
+import type { Post } from "@/lib/supabase/database.types"
 
 export async function generatePosts(brandKitId: string, count = 100) {
   const user = await getCurrentUser()
@@ -101,7 +102,7 @@ export async function generatePosts(brandKitId: string, count = 100) {
   return { success: `Generated ${posts.length} posts successfully!`, data: posts }
 }
 
-export async function getPosts(brandKitId?: string) {
+export async function getPosts(brandKitId?: string): Promise<Post[]> {
   const user = await getCurrentUser()
 
   if (!user) {
@@ -112,9 +113,10 @@ export async function getPosts(brandKitId?: string) {
 
   let query = supabase
     .from("posts")
-    .select("*, brand_kits(name)")
+    .select("id, caption, image_url, created_at, user_id, brand_kit_id, status, scheduled_for, updated_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
+    .range(0, 23)
 
   if (brandKitId) {
     query = query.eq("brand_kit_id", brandKitId)
@@ -127,7 +129,7 @@ export async function getPosts(brandKitId?: string) {
     return []
   }
 
-  return data
+  return (data || []) as Post[]
 }
 
 export async function getPost(id: string) {
