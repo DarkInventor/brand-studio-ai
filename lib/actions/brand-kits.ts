@@ -24,22 +24,13 @@ export async function createBrandKit(formData: FormData) {
   const logoFile = formData.get("logo") as File
 
   if (logoFile && logoFile.size > 0) {
-    const fileExt = logoFile.name.split(".").pop()
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("brand-logos")
-      .upload(fileName, logoFile)
-
-    if (uploadError) {
-      return { error: "Error uploading logo: " + uploadError.message }
+    try {
+      const buffer = Buffer.from(await logoFile.arrayBuffer())
+      const base64 = buffer.toString('base64')
+      logoUrl = `data:${logoFile.type};base64,${base64}`
+    } catch (err) {
+      return { error: "Error converting logo to data URL: " + (err instanceof Error ? err.message : String(err)) }
     }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("brand-logos").getPublicUrl(fileName)
-
-    logoUrl = publicUrl
   }
 
   const { data, error } = await supabase
@@ -122,22 +113,13 @@ export async function updateBrandKit(id: string, formData: FormData) {
   const logoFile = formData.get("logo") as File
 
   if (logoFile && logoFile.size > 0) {
-    const fileExt = logoFile.name.split(".").pop()
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from("brand-logos")
-      .upload(fileName, logoFile)
-
-    if (uploadError) {
-      return { error: "Error uploading logo: " + uploadError.message }
+    try {
+      const buffer = Buffer.from(await logoFile.arrayBuffer())
+      const base64 = buffer.toString('base64')
+      logoUrl = `data:${logoFile.type};base64,${base64}`
+    } catch (err) {
+      return { error: "Error converting logo to data URL: " + (err instanceof Error ? err.message : String(err)) }
     }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("brand-logos").getPublicUrl(fileName)
-
-    logoUrl = publicUrl
   }
 
   const updateData: any = {

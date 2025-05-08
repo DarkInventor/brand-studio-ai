@@ -4,7 +4,7 @@ import { createActionClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { getCurrentUser } from "./auth"
 import { getBrandKit } from "./brand-kits"
-import { generateCaption, generateImageWithGPTImage1, downloadImageToBuffer } from "@/lib/openai"
+import { generateCaption, generateImageWithGPTImage1, generateImageWithLogoEdit, downloadImageToBuffer } from "@/lib/openai"
 import type { Database, BrandKit } from "@/lib/supabase/database.types"
 
 export async function generatePosts(brandKitId: string, count = 100) {
@@ -39,8 +39,19 @@ export async function generatePosts(brandKitId: string, count = 100) {
       const caption = typeof captionRaw === 'string' ? captionRaw : ''
       console.log('Generated caption:', caption)
 
-      // Generate image using gpt-image-1
-      const generatedImageResponse = await generateImageWithGPTImage1(caption)
+      // Generate image using edits endpoint if logo is present, else use generations endpoint
+      let generatedImageResponse = null;
+      const kitAny = brandKit as any;
+      if (kitAny.logo_url && typeof kitAny.logo_url === 'string' && kitAny.logo_url.startsWith('data:image/')) {
+        try {
+          generatedImageResponse = await generateImageWithLogoEdit(caption, kitAny)
+        } catch (e) {
+          console.error('Error using edits endpoint, falling back to generations:', e)
+          generatedImageResponse = await generateImageWithGPTImage1(caption, kitAny)
+        }
+      } else {
+        generatedImageResponse = await generateImageWithGPTImage1(caption, kitAny)
+      }
       let imageUrl = ''
       if (
         generatedImageResponse &&
