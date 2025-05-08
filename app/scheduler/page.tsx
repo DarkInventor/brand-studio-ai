@@ -1,23 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronLeft, ChevronRight, Calendar, Plus, Instagram, Edit2, Trash2, Clock } from "lucide-react"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
-
-// Sample posts data
-const samplePosts = Array.from({ length: 15 }, (_, i) => ({
-  id: `post-${i + 1}`,
-  caption: [
-    "Start your day with our premium coffee blend. #MorningRitual",
-    "New collection just dropped! Check out our website for more. #FashionForward",
-    "The perfect companion for your weekend adventures. #WeekendVibes",
-    "Handcrafted with love and attention to detail. #Craftsmanship",
-    "Embrace the journey, not just the destination. #MondayMotivation",
-  ][Math.floor(Math.random() * 5)],
-}))
+import { createClient } from "@/lib/supabase/client"
+import type { Post, BrandKit } from "@/lib/supabase/database.types"
+import { getBrandKits } from "@/lib/actions/brand-kits"
+import { getPosts } from "@/lib/actions/posts"
 
 // Generate days for the current week
 const generateWeekDays = () => {
@@ -37,7 +29,7 @@ const generateWeekDays = () => {
       slots: Array.from({ length: 4 }, (_, j) => ({
         id: `slot-${i}-${j}`,
         time: `${9 + j * 3}:00`,
-        post: Math.random() > 0.8 ? samplePosts[Math.floor(Math.random() * 5)] : null,
+        post: null,
       })),
     }
   })
@@ -79,7 +71,7 @@ const generateMonthDays = () => {
       slots: Array.from({ length: 2 }, (_, j) => ({
         id: `month-prev-${i}-${j}`,
         time: `${12 + j * 6}:00`,
-        post: Math.random() > 0.9 ? samplePosts[Math.floor(Math.random() * 5)] : null,
+        post: null,
       })),
     })
   }
@@ -96,7 +88,7 @@ const generateMonthDays = () => {
       slots: Array.from({ length: 2 }, (_, j) => ({
         id: `month-current-${i}-${j}`,
         time: `${12 + j * 6}:00`,
-        post: Math.random() > 0.85 ? samplePosts[Math.floor(Math.random() * 5)] : null,
+        post: null,
       })),
     })
   }
@@ -114,7 +106,7 @@ const generateMonthDays = () => {
       slots: Array.from({ length: 2 }, (_, j) => ({
         id: `month-next-${i}-${j}`,
         time: `${12 + j * 6}:00`,
-        post: Math.random() > 0.9 ? samplePosts[Math.floor(Math.random() * 5)] : null,
+        post: null,
       })),
     })
   }
@@ -123,12 +115,48 @@ const generateMonthDays = () => {
 }
 
 export default function SchedulerPage() {
-  const [unscheduledPosts, setUnscheduledPosts] = useState(samplePosts)
+  const [unscheduledPosts, setUnscheduledPosts] = useState<Post[]>([])
+  const [brandKits, setBrandKits] = useState<BrandKit[]>([])
+  const [selectedBrandKitId, setSelectedBrandKitId] = useState<string>("")
   const [weekDays, setWeekDays] = useState(generateWeekDays())
   const [monthDays, setMonthDays] = useState(generateMonthDays())
   const [isConnected, setIsConnected] = useState(false)
   const [viewMode, setViewMode] = useState<"week" | "month">("week")
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  useEffect(() => {
+    async function loadBrandKitsAndPosts() {
+      const kitsRaw = await getBrandKits();
+      const kits = (kitsRaw || []).filter(
+        (k: any): k is BrandKit =>
+          k && typeof k === 'object' && typeof k.id === 'string' && typeof k.name === 'string'
+      ) as unknown as BrandKit[];
+      setBrandKits(kits);
+      if (kits.length > 0) {
+        setSelectedBrandKitId(kits[0].id);
+        const postsRaw = await getPosts(kits[0].id);
+        const posts = (postsRaw || []).filter(
+          (p: any): p is Post =>
+            p && typeof p === 'object' && typeof p.id === 'string' && typeof p.caption === 'string' && typeof p.image_url === 'string'
+        ) as unknown as Post[];
+        setUnscheduledPosts(posts);
+      }
+    }
+    loadBrandKitsAndPosts();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedBrandKitId) return;
+    async function loadPosts() {
+      const postsRaw = await getPosts(selectedBrandKitId);
+      const posts = (postsRaw || []).filter(
+        (p: any): p is Post =>
+          p && typeof p === 'object' && typeof p.id === 'string' && typeof p.caption === 'string' && typeof p.image_url === 'string'
+      ) as unknown as Post[];
+      setUnscheduledPosts(posts);
+    }
+    loadPosts();
+  }, [selectedBrandKitId]);
 
   const handleDragEnd = (result: any) => {
     const { source, destination } = result
@@ -154,7 +182,7 @@ export default function SchedulerPage() {
         if (viewMode === "week") {
           const [dayIndex, slotIndex] = destination.droppableId.split("-").slice(1).map(Number)
           const newWeekDays = [...weekDays]
-          newWeekDays[dayIndex].slots[slotIndex].post = sourcePost
+          newWeekDays[dayIndex].slots[slotIndex].post = sourcePost && typeof sourcePost === 'object' && typeof sourcePost.id === 'string' ? sourcePost : null;
           setWeekDays(newWeekDays)
         } else {
           // Handle month view
@@ -176,7 +204,7 @@ export default function SchedulerPage() {
             targetIndex = newMonthDays.length - (lastDay.getDate() - dayIndex) - 1
           }
 
-          newMonthDays[targetIndex].slots[slotIndex].post = sourcePost
+          newMonthDays[targetIndex].slots[slotIndex].post = sourcePost && typeof sourcePost === 'object' && typeof sourcePost.id === 'string' ? sourcePost : null;
           setMonthDays(newMonthDays)
         }
       }
@@ -221,6 +249,18 @@ export default function SchedulerPage() {
       <header className="border-b bg-white px-4 py-3 shadow-sm dark:bg-gray-950">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
+            {/* Brand Kit Selector */}
+            <Select value={selectedBrandKitId} onValueChange={setSelectedBrandKitId}>
+              <SelectTrigger className="w-[180px]">
+                {/* <span className="mr-2">Brand Kit:</span> */}
+                <SelectValue placeholder="Select Brand Kit" />
+              </SelectTrigger>
+              <SelectContent>
+                {brandKits.map((kit) => (
+                  <SelectItem key={kit.id} value={kit.id}>{kit.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" onClick={goToToday}>
               Today
             </Button>
@@ -279,7 +319,7 @@ export default function SchedulerPage() {
               {(provided) => (
                 <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 overflow-y-auto p-4">
                   <div className="space-y-3">
-                    {unscheduledPosts.map((post, index) => (
+                    {unscheduledPosts.filter((post) => post && typeof post === 'object' && typeof post.id === 'string').map((post, index) => (
                       <Draggable key={post.id} draggableId={post.id} index={index}>
                         {(provided, snapshot) => (
                           <div
@@ -293,7 +333,7 @@ export default function SchedulerPage() {
                             <div className="flex gap-3">
                               <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md">
                                 <Image
-                                  src={`/placeholder.svg?height=56&width=56&text=${post.id}`}
+                                  src={post.image_url || "/placeholder.svg"}
                                   alt={`Post ${post.id}`}
                                   fill
                                   className="object-cover"
@@ -358,7 +398,7 @@ export default function SchedulerPage() {
                                 {slot.time}
                               </div>
 
-                              {slot.post ? (
+                              {slot.post && typeof slot.post === 'object' && typeof slot.post.id === 'string' ? (
                                 <Draggable draggableId={`scheduled-${slot.post.id}`} index={0}>
                                   {(provided, snapshot) => (
                                     <div
@@ -371,8 +411,8 @@ export default function SchedulerPage() {
                                     >
                                       <div className="relative h-12 w-full overflow-hidden rounded-md">
                                         <Image
-                                          src={`/placeholder.svg?height=48&width=120&text=${slot.post?.id}`}
-                                          alt={`Post ${slot.post?.id}`}
+                                          src={slot.post.image_url || "/placeholder.svg"}
+                                          alt={`Post ${slot.post.id}`}
                                           fill
                                           className="object-cover"
                                         />
@@ -445,7 +485,7 @@ export default function SchedulerPage() {
                         >
                           {(provided, snapshot) => (
                             <div ref={provided.innerRef} {...provided.droppableProps} className="min-h-[40px]">
-                              {slot.post ? (
+                              {slot.post && typeof slot.post === 'object' && typeof slot.post.id === 'string' ? (
                                 <Draggable
                                   draggableId={`month-scheduled-${slot.post.id}-${index}-${slotIndex}`}
                                   index={0}
@@ -459,8 +499,8 @@ export default function SchedulerPage() {
                                     >
                                       <div className="relative h-6 w-6 flex-shrink-0 overflow-hidden rounded">
                                         <Image
-                                          src={`/placeholder.svg?height=24&width=24&text=${slot.post?.id}`}
-                                          alt={`Post ${slot.post?.id}`}
+                                          src={slot.post.image_url || "/placeholder.svg"}
+                                          alt={`Post ${slot.post.id}`}
                                           fill
                                           className="object-cover"
                                         />

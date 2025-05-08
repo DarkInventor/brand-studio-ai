@@ -148,22 +148,15 @@ export async function updateUserProfile(formData: FormData) {
 
     let avatarUrl = null
 
-    // Upload avatar if provided
+    // Convert avatar file to data URL if provided
     if (avatarFile && avatarFile.size > 0) {
-      const fileExt = avatarFile.name.split(".").pop()
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`
-
-      const { error: uploadError } = await supabase.storage.from("avatars").upload(fileName, avatarFile)
-
-      if (uploadError) {
-        return { error: "Error uploading avatar: " + uploadError.message }
+      try {
+        const buffer = Buffer.from(await avatarFile.arrayBuffer())
+        const base64 = buffer.toString('base64')
+        avatarUrl = `data:${avatarFile.type};base64,${base64}`
+      } catch (err) {
+        return { error: "Error converting avatar to data URL: " + (err instanceof Error ? err.message : String(err)) }
       }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(fileName)
-
-      avatarUrl = publicUrl
     }
 
     // Update profile
