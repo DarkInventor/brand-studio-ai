@@ -307,8 +307,8 @@ export default function SchedulerPage() {
   // Centralized fetch function
   const fetchAndSync = async (brandKitId: string, date: Date) => {
     if (!brandKitId) return
-
-    setLoadingPosts(true)
+    // Only set loadingPosts for initial load or brand kit change
+    if (!loadingBrandKits) setLoadingPosts(true)
     try {
     const postsRaw = await getPosts(brandKitId)
     const posts = Array.isArray(postsRaw) ? postsRaw.filter(isPost) : []
@@ -442,11 +442,16 @@ export default function SchedulerPage() {
   // Fetch and sync whenever brand kit or current date changes
   useEffect(() => {
     if (!selectedBrandKitId) return
+    // Only show loading spinner for initial load or brand kit change, not for navigation
+    if (loadingBrandKits) return
     fetchAndSync(selectedBrandKitId, currentDate)
-  }, [selectedBrandKitId, currentDate])
+  }, [selectedBrandKitId, currentDate, loadingBrandKits])
 
   // Navigation handlers
-  const goToToday = () => setCurrentDate(new Date())
+  const goToToday = () => {
+    setCurrentDate(new Date())
+    // Do not set loadingPosts here
+  }
 
   const navigatePrevious = () => {
     const newDate = new Date(currentDate)
@@ -456,6 +461,7 @@ export default function SchedulerPage() {
       newDate.setMonth(newDate.getMonth() - 1)
     }
     setCurrentDate(newDate)
+    // Do not set loadingPosts here
   }
 
   const navigateNext = () => {
@@ -466,6 +472,7 @@ export default function SchedulerPage() {
       newDate.setMonth(newDate.getMonth() + 1)
     }
     setCurrentDate(newDate)
+    // Do not set loadingPosts here
   }
 
   // Day selection handler
@@ -1066,90 +1073,83 @@ export default function SchedulerPage() {
 
           {/* Calendar Area */}
           <main className="flex-1 overflow-auto bg-white p-4 dark:bg-gray-950">
-              {loadingPosts && !isDragging ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-muted-foreground">Loading schedule...</p>
-                  </div>
-                </div>
-              ) : viewMode === "week" ? (
-              <div className="grid h-full grid-cols-7 gap-4">
-                {weekDays.map((day, dayIndex) => (
-                  <div
-                    key={`day-${dayIndex}`}
-                    className={`flex flex-col rounded-lg border ${day.isToday ? "border-primary bg-primary/5" : ""}`}
-                  >
-                      <div
-                        className={`p-2 text-center ${day.isToday ? "font-bold text-primary" : ""}`}
-                        onClick={() => handleDayClick(day.date)}
-                      >
-                      <p className="text-sm font-medium">{day.dayName}</p>
-                      <p className="text-xl">{day.dayNumber}</p>
-                      <p className="text-xs text-muted-foreground">{day.month}</p>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-3 p-2">
-                      {day.slots.map((slot, slotIndex) => (
-                        <Droppable
-                          key={slot.id}
-                          droppableId={`slot-${dayIndex}-${slotIndex}`}
-                            isDropDisabled={isPastDate(day.date)}
+              {viewMode === "week" ? (
+                <div className="grid h-full grid-cols-7 gap-4">
+                  {weekDays.map((day, dayIndex) => (
+                    <div
+                      key={`day-${dayIndex}`}
+                      className={`flex flex-col rounded-lg border ${day.isToday ? "border-primary bg-primary/5" : ""}`}
+                    >
+                        <div
+                          className={`p-2 text-center ${day.isToday ? "font-bold text-primary" : ""}`}
+                          onClick={() => handleDayClick(day.date)}
                         >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={`flex min-h-[100px] flex-col rounded-md border p-2 transition-colors ${
-                                  snapshot.isDraggingOver && !isPastDate(day.date)
-                                    ? "border-primary/50 bg-primary/5"
-                                    : isPastDate(day.date)
-                                      ? "bg-gray-50 dark:bg-gray-800/50"
-                                      : ""
-                                } ${isPastDate(day.date) ? "opacity-70" : ""}`}
-                            >
-                              <div className="mb-1 flex items-center gap-2">
-                                  <Clock className="h-3 w-3 text-muted-foreground" />
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="text-[10px] font-medium text-muted-foreground">EST</span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="text-xs">Eastern Standard Time</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                <Input
-                                  type="text"
-                                  value={slot.time}
-                                  onChange={(e) => updateSlotTime(dayIndex, slotIndex, e.target.value, "week")}
-                                    className="h-6 w-16 text-xs"
-                                  disabled={isPastDate(day.date)}
-                                />
-                              </div>
+                        <p className="text-sm font-medium">{day.dayName}</p>
+                        <p className="text-xl">{day.dayNumber}</p>
+                        <p className="text-xs text-muted-foreground">{day.month}</p>
+                      </div>
+                      <div className="flex flex-1 flex-col gap-3 p-2">
+                        {day.slots.map((slot, slotIndex) => (
+                          <Droppable
+                            key={slot.id}
+                            droppableId={`slot-${dayIndex}-${slotIndex}`}
+                              isDropDisabled={isPastDate(day.date)}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className={`flex min-h-[100px] flex-col rounded-md border p-2 transition-colors ${
+                                    snapshot.isDraggingOver && !isPastDate(day.date)
+                                      ? "border-primary/50 bg-primary/5"
+                                      : isPastDate(day.date)
+                                        ? "bg-gray-50 dark:bg-gray-800/50"
+                                        : ""
+                                  } ${isPastDate(day.date) ? "opacity-70" : ""}`}
+                              >
+                                <div className="mb-1 flex items-center gap-2">
+                                    <Clock className="h-3 w-3 text-muted-foreground" />
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-[10px] font-medium text-muted-foreground">EST</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="text-xs">Eastern Standard Time</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  <Input
+                                    type="text"
+                                    value={slot.time}
+                                    onChange={(e) => updateSlotTime(dayIndex, slotIndex, e.target.value, "week")}
+                                      className="h-6 w-16 text-xs"
+                                    disabled={isPastDate(day.date)}
+                                  />
+                                </div>
 
-                                {/* Display single post (legacy support) */}
-                              {slot.post && (
-                                <Draggable draggableId={`scheduled-${slot.post.id}`} index={0}>
-                                  {(provided, snapshot) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      className={`group flex flex-col gap-2 rounded-md bg-white p-2 shadow-sm transition-all dark:bg-gray-800 ${
-                                        snapshot.isDragging ? "rotate-1 scale-105 shadow-md" : ""
-                                      }`}
-                                    >
-                                      <div className="relative h-12 w-full overflow-hidden rounded-md">
-                                        {slot.post && (
-                                          <Image
-                                            src={slot.post.image_url || "/placeholder.svg"}
-                                            alt={`Post ${slot.post.id}`}
-                                            fill
-                                            className="object-cover"
-                                          />
-                                        )}
-                                        <div className="absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100">
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
+                                  {/* Display single post (legacy support) */}
+                                {slot.post && (
+                                  <Draggable draggableId={`scheduled-${slot.post.id}`} index={0}>
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        className={`group flex flex-col gap-2 rounded-md bg-white p-2 shadow-sm transition-all dark:bg-gray-800 ${
+                                          snapshot.isDragging ? "rotate-1 scale-105 shadow-md" : ""
+                                        }`}
+                                      >
+                                        <div className="relative h-12 w-full overflow-hidden rounded-md">
+                                          {slot.post && (
+                                            <Image
+                                              src={slot.post.image_url || "/placeholder.svg"}
+                                              alt={`Post ${slot.post.id}`}
+                                              fill
+                                              className="object-cover"
+                                            />
+                                          )}
+                                          <div className="absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100">
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
                                           <Button
                                             variant="ghost"
                                             size="icon"
