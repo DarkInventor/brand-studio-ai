@@ -297,7 +297,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
               <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
                 <Instagram className="mr-1 h-3 w-3" /> Instagram
               </Badge>
-              <div className="flex gap-2">
+              {/* <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -316,7 +316,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
                   <ArrowRight className="h-4 w-4" />
                   <span className="sr-only">Next</span>
                 </Button>
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -373,7 +373,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
                         <label htmlFor="caption" className="text-sm font-medium">
                           Caption
                         </label>
-                        <Button
+                        {/* <Button
                           variant="ghost"
                           size="sm"
                           onClick={handleRegenerate}
@@ -391,7 +391,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
                               Regenerate
                             </>
                           )}
-                        </Button>
+                        </Button> */}
                       </div>
                       <Textarea
                         id="caption"
