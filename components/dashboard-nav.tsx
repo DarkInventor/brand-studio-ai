@@ -3,19 +3,38 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutGrid, Calendar, Package, LogOut, Palette, Menu, X } from "lucide-react"
+import { LayoutGrid, Calendar, Package, LogOut, Palette, Menu, X, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useState, useEffect } from "react"
 import { BrandLogo } from "@/components/brand-logo"
 import { UserProfileDropdown } from "@/components/user-profile-dropdown"
 import { createClient } from "@/lib/supabase/client"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 const navItems = [
   {
     title: "Dashboard",
     href: "/dashboard",
     icon: LayoutGrid,
+    subItems: [
+      {
+        title: "Image Posts",
+        href: "/dashboard/image-posts",
+      },
+      {
+        title: "Video Posts",
+        href: "/dashboard/video-posts",
+      },
+      {
+        title: "Commercial Ads",
+        href: "/dashboard/commercial-ads",
+      },
+    ],
   },
   {
     title: "Schedule",
@@ -39,6 +58,7 @@ export function DashboardNav() {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [openCollapsible, setOpenCollapsible] = useState<string | null>(null)
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -60,6 +80,62 @@ export function DashboardNav() {
 
   if (!mounted) return null
 
+  const renderNavItem = (item: any) => {
+    if (item.subItems) {
+      return (
+        <Collapsible
+          open={openCollapsible === item.title}
+          onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? item.title : null)}
+          className="w-full"
+        >
+          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+            <div className="flex items-center gap-3">
+              <item.icon className="h-5 w-5" />
+              {item.title}
+            </div>
+            <ChevronDown className={cn("h-4 w-4 transition-transform", openCollapsible === item.title && "rotate-180")} />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pl-8">
+            <ul className="grid gap-2">
+              {item.subItems.map((subItem: any) => (
+                <li key={subItem.href}>
+                  <Link
+                    href={subItem.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      pathname === subItem.href
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    {subItem.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
+      )
+    }
+
+    return (
+      <Link
+        href={item.href}
+        onClick={() => setOpen(false)}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          pathname === item.href
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        )}
+      >
+        <item.icon className="h-5 w-5" />
+        {item.title}
+      </Link>
+    )
+  }
+
   return (
     <>
       {/* Mobile Navigation Header */}
@@ -79,21 +155,7 @@ export function DashboardNav() {
               <nav className="flex-1 overflow-auto p-4">
                 <ul className="grid gap-2">
                   {navItems.map((item) => (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                          pathname === item.href
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                      >
-                        <item.icon className="h-5 w-5" />
-                        {item.title}
-                      </Link>
-                    </li>
+                    <li key={item.href}>{renderNavItem(item)}</li>
                   ))}
                 </ul>
               </nav>
@@ -140,20 +202,7 @@ export function DashboardNav() {
         <nav className="flex-1 overflow-auto p-4">
           <ul className="grid gap-2">
             {navItems.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    pathname === item.href
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.title}
-                </Link>
-              </li>
+              <li key={item.href}>{renderNavItem(item)}</li>
             ))}
           </ul>
         </nav>
