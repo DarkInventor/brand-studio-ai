@@ -86,7 +86,7 @@ function Dashboard() {
             <Button asChild className="w-full group" disabled>
               <Link href="#" className="flex items-center justify-between">
                 <span className="flex items-center">
-                  <Plus className="mr-2 h-4 w-4" />
+                  {/* <Plus className="mr-2 h-4 w-4" /> */}
                   Coming Soon
                 </span>
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -123,7 +123,7 @@ function Dashboard() {
             <Button asChild className="w-full group" disabled>
               <Link href="#" className="flex items-center justify-between">
                 <span className="flex items-center">
-                  <Plus className="mr-2 h-4 w-4" />
+                  {/* <Plus className="mr-2 h-4 w-4" /> */}
                   Coming Soon
                 </span>
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />

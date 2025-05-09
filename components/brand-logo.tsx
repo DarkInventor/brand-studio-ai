@@ -22,7 +22,7 @@ export function BrandLogo({ size = "md", showText = true, href = "/", className 
   }
 
   const LogoContent = () => (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex items-center gap-2 ", className)}>
       <div
         className={cn(
           "relative flex items-center justify-center rounded-lg bg-primary text-primary-foreground",

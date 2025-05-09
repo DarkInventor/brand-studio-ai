@@ -109,7 +109,7 @@ export async function generatePosts(brandKitId: string, count = 100) {
   return { success: `Generated ${posts.length} posts successfully!`, data: posts }
 }
 
-export async function getPosts(brandKitId?: string): Promise<Post[]> {
+export async function getPosts(brandKitId?: string, sortBy?: string, statusFilter?: string, captionSearch?: string): Promise<Post[]> {
   const user = await getCurrentUser()
 
   if (!user) {
@@ -122,11 +122,17 @@ export async function getPosts(brandKitId?: string): Promise<Post[]> {
     .from("posts")
     .select("id, caption, image_url, created_at, user_id, brand_kit_id, status, scheduled_for, updated_at")
     .eq("user_id", user.id as any)
-    .order("created_at", { ascending: false })
-    .range(0, 23)
+    .order("created_at", { ascending: sortBy === "oldest" })
+    .range(0, 99)
 
   if (brandKitId) {
     query = query.eq("brand_kit_id", brandKitId as any)
+  }
+  if (statusFilter && statusFilter !== "all") {
+    query = query.eq("status", statusFilter as any)
+  }
+  if (captionSearch && captionSearch.trim() !== "") {
+    query = query.ilike("caption", `%${captionSearch}%`)
   }
 
   const { data, error } = await query
