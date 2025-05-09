@@ -109,7 +109,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
             </div>
 
             <div className="mt-auto flex flex-col gap-3 sm:flex-row">
-              <Button
+              {/* <Button
                 variant="outline"
                 onClick={handleRegenerate}
                 disabled={isRegenerating}
@@ -126,7 +126,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
                     Regenerate Caption
                   </>
                 )}
-              </Button>
+              </Button> */}
               <Button onClick={handleSave} className="sm:ml-auto flex items-center gap-2" disabled={isSaving}>
                 {isSaving ? (
                   <>

@@ -39,7 +39,7 @@ export async function generatePromptForImage(brandKit: any) {
     `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [
         {
           role: "system",
@@ -92,7 +92,7 @@ export async function generateCaption(brandKit: any, imageUrl: string) {
     console.log('Generated prompt:', prompt);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-nano",
       messages: [
         {
           role: "system",
