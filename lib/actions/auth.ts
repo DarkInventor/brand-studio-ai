@@ -3,6 +3,7 @@
 import { createActionClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
+import { uploadToR2 } from "@/lib/r2"
 
 export async function signUp(formData: FormData) {
   const supabase = createActionClient()
@@ -148,14 +149,13 @@ export async function updateUserProfile(formData: FormData) {
 
     let avatarUrl = null
 
-    // Convert avatar file to data URL if provided
+    // Upload avatar file to R2 if provided
     if (avatarFile && avatarFile.size > 0) {
       try {
         const buffer = Buffer.from(await avatarFile.arrayBuffer())
-        const base64 = buffer.toString('base64')
-        avatarUrl = `data:${avatarFile.type};base64,${base64}`
+        avatarUrl = await uploadToR2(buffer, avatarFile.type, `avatars/${user.id}`)
       } catch (err) {
-        return { error: "Error converting avatar to data URL: " + (err instanceof Error ? err.message : String(err)) }
+        return { error: "Error uploading avatar to R2: " + (err instanceof Error ? err.message : String(err)) }
       }
     }
 

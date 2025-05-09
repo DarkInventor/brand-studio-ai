@@ -3,6 +3,7 @@
 import { createActionClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { getCurrentUser } from "./auth"
+import { uploadToR2 } from "@/lib/r2"
 
 export async function createBrandKit(formData: FormData) {
   const user = await getCurrentUser()
@@ -26,10 +27,9 @@ export async function createBrandKit(formData: FormData) {
   if (logoFile && logoFile.size > 0) {
     try {
       const buffer = Buffer.from(await logoFile.arrayBuffer())
-      const base64 = buffer.toString('base64')
-      logoUrl = `data:${logoFile.type};base64,${base64}`
+      logoUrl = await uploadToR2(buffer, logoFile.type, `brand-logos/${user.id}`)
     } catch (err) {
-      return { error: "Error converting logo to data URL: " + (err instanceof Error ? err.message : String(err)) }
+      return { error: "Error uploading logo to R2: " + (err instanceof Error ? err.message : String(err)) }
     }
   }
 
@@ -115,10 +115,9 @@ export async function updateBrandKit(id: string, formData: FormData) {
   if (logoFile && logoFile.size > 0) {
     try {
       const buffer = Buffer.from(await logoFile.arrayBuffer())
-      const base64 = buffer.toString('base64')
-      logoUrl = `data:${logoFile.type};base64,${base64}`
+      logoUrl = await uploadToR2(buffer, logoFile.type, `brand-logos/${user.id}`)
     } catch (err) {
-      return { error: "Error converting logo to data URL: " + (err instanceof Error ? err.message : String(err)) }
+      return { error: "Error uploading logo to R2: " + (err instanceof Error ? err.message : String(err)) }
     }
   }
 

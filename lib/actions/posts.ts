@@ -7,6 +7,8 @@ import { getBrandKit } from "./brand-kits"
 import { generateCaption, generateImageWithGPTImage1, generateImageWithLogoEdit, downloadImageToBuffer } from "@/lib/openai"
 import type { Database, BrandKit } from "@/lib/supabase/database.types"
 import type { Post } from "@/lib/supabase/database.types"
+import { uploadToR2, getR2Url } from "@/lib/r2"
+import { R2_BUCKET, R2_PUBLIC_URL, R2_PUBLIC_DOMAIN } from "@/lib/r2"
 
 export async function generatePosts(brandKitId: string, count = 100) {
   const user = await getCurrentUser()
@@ -16,7 +18,7 @@ export async function generatePosts(brandKitId: string, count = 100) {
   }
 
   const brandKit = await getBrandKit(brandKitId)
-  if (!brandKit || typeof brandKit !== 'object' || !('id' in brandKit) || typeof brandKit.id !== 'string') {
+  if (!brandKit || typeof brandKit !== 'object' || !('id' in (brandKit as any)) || typeof (brandKit as any).id !== 'string') {
     return { error: "Brand kit not found" }
   }
   const safeBrandKit = brandKit as BrandKit;
@@ -29,7 +31,7 @@ export async function generatePosts(brandKitId: string, count = 100) {
   const posts = []
 
   for (let i = 0; i < batches; i++) {
-    const batchPosts = []
+    const batchPosts: Database["public"]["Tables"]["posts"]["Insert"][] = []
     const currentBatchSize = Math.min(batchSize, count - i * batchSize)
 
     for (let j = 0; j < currentBatchSize; j++) {
@@ -62,11 +64,20 @@ export async function generatePosts(brandKitId: string, count = 100) {
       ) {
         const imgData = generatedImageResponse.data[0];
         if (imgData.url) {
-          imageUrl = imgData.url;
-          console.log('Using OpenAI image URL:', imageUrl);
+          // Download the image from OpenAI, upload to R2, and store the R2 URL
+          try {
+            const buffer = await downloadImageToBuffer(imgData.url)
+            imageUrl = await uploadToR2(buffer, 'image/png', `posts/${user.id}`)
+            console.log('Downloaded OpenAI image and uploaded to R2:', imageUrl)
+          } catch (err) {
+            console.error('Failed to download/upload OpenAI image:', err)
+            imageUrl = ''
+          }
         } else if (imgData.b64_json) {
-          imageUrl = `data:image/png;base64,${imgData.b64_json}`;
-          console.log('Using OpenAI b64_json as data URL');
+          // Upload base64 image to R2
+          const buffer = Buffer.from(imgData.b64_json, 'base64')
+          imageUrl = await uploadToR2(buffer, 'image/png', `posts/${user.id}`)
+          console.log('Uploaded image to R2:', imageUrl)
         } else {
           console.error('No usable image data returned from OpenAI');
         }
@@ -84,11 +95,7 @@ export async function generatePosts(brandKitId: string, count = 100) {
       batchPosts.push(post)
     }
 
-    const { data, error } = await supabase.from("posts").insert(
-      batchPosts.map(({ user_id, brand_kit_id, caption, image_url, status }) => ({
-        user_id, brand_kit_id, caption, image_url, status: status || "draft"
-      })) as Database["public"]["Tables"]["posts"]["Insert"][]
-    ).select()
+    const { data, error } = await supabase.from("posts").insert(batchPosts as any).select()
 
     if (error) {
       return { error: error.message }
@@ -114,12 +121,12 @@ export async function getPosts(brandKitId?: string): Promise<Post[]> {
   let query = supabase
     .from("posts")
     .select("id, caption, image_url, created_at, user_id, brand_kit_id, status, scheduled_for, updated_at")
-    .eq("user_id", user.id)
+    .eq("user_id", user.id as any)
     .order("created_at", { ascending: false })
     .range(0, 23)
 
   if (brandKitId) {
-    query = query.eq("brand_kit_id", brandKitId)
+    query = query.eq("brand_kit_id", brandKitId as any)
   }
 
   const { data, error } = await query
@@ -135,7 +142,7 @@ export async function getPosts(brandKitId?: string): Promise<Post[]> {
 export async function getPost(id: string) {
   const supabase = createActionClient()
 
-  const { data, error } = await supabase.from("posts").select("*, brand_kits(name)").eq("id", id).single()
+  const { data, error } = await supabase.from("posts").select("*, brand_kits(name)").eq("id", id as any).single()
 
   if (error) {
     console.error("Error fetching post:", error)
@@ -169,9 +176,9 @@ export async function updatePost(id: string, formData: FormData) {
 
   const { data, error } = await supabase
     .from("posts")
-    .update(updateData)
-    .eq("id", id)
-    .eq("user_id", user.id)
+    .update(updateData as any)
+    .eq("id", id as any)
+    .eq("user_id", user.id as any)
     .select()
     .single()
 
@@ -195,7 +202,7 @@ export async function deletePost(id: string) {
 
   const supabase = createActionClient()
 
-  const { error } = await supabase.from("posts").delete().eq("id", id).eq("user_id", user.id)
+  const { error } = await supabase.from("posts").delete().eq("id", id as any).eq("user_id", user.id as any)
 
   if (error) {
     return { error: error.message }
@@ -224,9 +231,9 @@ export async function schedulePosts(postIds: string[], date: string, time: strin
     .update({
       status: "scheduled",
       scheduled_for: scheduledFor,
-    })
-    .in("id", postIds)
-    .eq("user_id", user.id)
+    } as any)
+    .in("id", postIds as any)
+    .eq("user_id", user.id as any)
     .select()
 
   if (error) {
@@ -238,4 +245,38 @@ export async function schedulePosts(postIds: string[], date: string, time: strin
   revalidatePath("/summary")
 
   return { success: `Scheduled ${data.length} posts successfully!`, data }
+}
+
+// Migration: Update all image_url values in posts to include the bucket name if missing
+export async function migratePostImageUrls() {
+  const supabase = createActionClient()
+  const { data: posts, error } = await supabase.from("posts").select("id, image_url")
+  if (error || !Array.isArray(posts)) {
+    console.error("Error fetching posts for migration:", error)
+    return { error: error?.message || "Failed to fetch posts" }
+  }
+  let updated = 0
+  for (const post of posts as any[]) {
+    if (typeof post.image_url === "string") {
+      // If the URL starts with the old public URL or S3 endpoint, or contains the bucket, fix it
+      let key = ''
+      if (post.image_url.startsWith(R2_PUBLIC_URL)) {
+        key = post.image_url.replace(`${R2_PUBLIC_URL}/`, "")
+        if (key.startsWith(`${R2_BUCKET}/`)) key = key.replace(`${R2_BUCKET}/`, "")
+      } else if (post.image_url.startsWith(R2_PUBLIC_DOMAIN)) {
+        key = post.image_url.replace(`${R2_PUBLIC_DOMAIN}/`, "")
+        if (key.startsWith(`${R2_BUCKET}/`)) key = key.replace(`${R2_BUCKET}/`, "")
+      } else if (post.image_url.includes(R2_BUCKET)) {
+        // e.g. ...r2.cloudflarestorage.com/bucket/key
+        const idx = post.image_url.indexOf(`${R2_BUCKET}/`)
+        if (idx !== -1) key = post.image_url.substring(idx + R2_BUCKET.length + 1)
+      }
+      if (key) {
+        const newUrl = getR2Url(key)
+        const { error: updateError } = await supabase.from("posts").update({ image_url: newUrl } as any).eq("id", (post as any).id as any)
+        if (!updateError) updated++
+      }
+    }
+  }
+  return { success: `Migrated ${updated} post image URLs to new format.` }
 }
