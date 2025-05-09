@@ -4,14 +4,56 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronLeft, ChevronRight, Calendar, Plus, Instagram, Edit2, Trash2, Clock } from "lucide-react"
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
+import { ChevronLeft, ChevronRight, Calendar, Plus, Instagram, Edit2, Trash2, Clock, Loader2 } from "lucide-react"
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import { createClient } from "@/lib/supabase/client"
 import type { Post, BrandKit, Database } from "@/lib/supabase/database.types"
 import { getBrandKits } from "@/lib/actions/brand-kits"
 import { getPosts } from "@/lib/actions/posts"
 import { Input } from "@/components/ui/input"
-import type { Database as SupabaseDatabase } from "@/lib/supabase/database.types"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
+import { toast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
+
+/**
+ * Social Media Post Scheduler
+ *
+ * Note on timezones:
+ * All dates and times are stored in EST (Eastern Standard Time) in the database
+ * without timezone information. The UI displays and accepts times in EST.
+ * No timezone conversion is needed since everything is in EST by default.
+ */
+
+// Remove the timezone conversion functions and replace them with simpler versions that don't do timezone conversion
+
+// Replace the utcToEst24Hour function with this simpler version
+function formatTime(timeString: string) {
+  if (!timeString) return ""
+  // If it's a full timestamp, extract just the time portion
+  if (timeString.includes("T") || timeString.includes(" ")) {
+    const timePart = timeString.split(/[T ]/)[1]
+    return timePart ? timePart.substring(0, 5) : "" // Return HH:MM format
+  }
+  return timeString
+}
+
+// Replace the utcTimestampToEstDateTime function with this simpler version
+function parseDateTime(dateTimeString: string): { date: string; time: string } {
+  if (!dateTimeString) return { date: "", time: "" }
+  try {
+    // Handle both formats: '2023-05-15 14:30:00' and '2023-05-15T14:30:00'
+    const parts = dateTimeString.replace("T", " ").split(" ")
+    if (parts.length !== 2) return { date: "", time: "" }
+
+    const date = parts[0] // YYYY-MM-DD
+    const time = parts[1].substring(0, 5) // HH:MM
+
+    return { date, time }
+  } catch {
+    return { date: "", time: "" }
+  }
+}
 
 // Generate days for the week based on a given date
 const generateWeekDays = (currentDate = new Date()) => {
@@ -53,7 +95,11 @@ const generateMonthDays = (currentDate = new Date()) => {
 
   const prevMonthLastDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate()
   for (let i = 0; i < daysFromPrevMonth; i++) {
-    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, prevMonthLastDay - daysFromPrevMonth + i + 1)
+    const date = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() - 1,
+      prevMonthLastDay - daysFromPrevMonth + i + 1,
+    )
     days.push({
       date,
       dayNumber: date.getDate(),
@@ -114,104 +160,134 @@ const isPastDate = (date: Date) => {
 // Fetch scheduled posts from Supabase (now from posts table)
 const fetchScheduledPosts = async (brandKitId: string): Promise<Post[]> => {
   const supabase = createClient()
-  let query = supabase.from('posts').select('*')
-  if (typeof brandKitId === 'string') {
-    query = query.eq('brand_kit_id', brandKitId as any)
+  let query = supabase.from("posts").select("*")
+  if (typeof brandKitId === "string") {
+    query = query.eq("brand_kit_id", brandKitId as any)
   }
-  query = query.not('scheduled_for', 'is', null)
+  query = query.not("scheduled_for", "is", null)
   const { data, error } = await query
   if (error || !Array.isArray(data)) {
-    console.error('Error fetching scheduled posts:', error)
+    console.error("Error fetching scheduled posts:", error)
     return []
   }
   return data.filter(isPost)
 }
 
 // Save scheduled post to Supabase (update post's scheduled_for and status)
-// NOTE: For true EST-only storage, use 'timestamp without time zone' in your DB for scheduled_for
 const saveScheduledPost = async (postId: string, date: string, time: string, brandKitId: string) => {
   const supabase = createClient()
-  if (typeof postId !== 'string' || typeof brandKitId !== 'string') return
+  if (typeof postId !== "string" || typeof brandKitId !== "string") return
   const safeTime = time && /^\d{2}:\d{2}$/.test(time) ? time : "09:00"
-  const safeDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().split('T')[0]
-  // Save as plain string, no Date object, no timezone
+  const safeDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toLocaleDateString("en-CA") // en-CA gives YYYY-MM-DD format
+  // Store directly in EST (no timezone conversion needed)
   const scheduledFor = `${safeDate} ${safeTime}:00`
+
   const updateObj: Database["public"]["Tables"]["posts"]["Update"] = {
     scheduled_for: scheduledFor,
-    status: 'scheduled',
+    status: "scheduled",
   }
-  const { error } = await supabase
-    .from('posts')
-    .update(updateObj)
-    .eq('id', postId as any)
-    .eq('brand_kit_id', brandKitId as any)
-  if (error) {
-    console.error('Error saving scheduled post:', error)
+
+  try {
+    const { error } = await supabase
+      .from("posts")
+      .update(updateObj)
+      .eq("id", postId as any)
+      .eq("brand_kit_id", brandKitId as any)
+
+    if (error) {
+      toast({
+        title: "Error scheduling post",
+        description: error.message,
+        variant: "destructive",
+      })
+      return false
+    }
+
+    toast({
+      title: "Post scheduled",
+      description: `Post scheduled for ${safeDate} at ${safeTime}`,
+    })
+    return true
+  } catch (error) {
+    console.error("Error saving scheduled post:", error)
+    toast({
+      title: "Error scheduling post",
+      description: "An unexpected error occurred",
+      variant: "destructive",
+    })
+    return false
   }
 }
 
 // Remove scheduled post from Supabase (set scheduled_for to null and status to unscheduled)
 const removeScheduledPost = async (postId: string, brandKitId: string) => {
   const supabase = createClient()
-  if (typeof postId !== 'string' || typeof brandKitId !== 'string') return
+  if (typeof postId !== "string" || typeof brandKitId !== "string") return
   const updateObj: Database["public"]["Tables"]["posts"]["Update"] = {
     scheduled_for: null,
-    status: 'unscheduled',
+    status: "unscheduled",
   }
-  const { error } = await supabase
-    .from('posts')
-    .update(updateObj)
-    .eq('id', postId as any)
-    .eq('brand_kit_id', brandKitId as any)
-  if (error) {
-    console.error('Error removing scheduled post:', error)
+
+  try {
+    const { error } = await supabase
+      .from("posts")
+      .update(updateObj)
+      .eq("id", postId as any)
+      .eq("brand_kit_id", brandKitId as any)
+
+    if (error) {
+      toast({
+        title: "Error removing scheduled post",
+        description: error.message,
+        variant: "destructive",
+      })
+      return false
+    }
+
+    toast({
+      title: "Post unscheduled",
+      description: "Post has been removed from the schedule",
+    })
+    return true
+  } catch (error) {
+    console.error("Error removing scheduled post:", error)
+    toast({
+      title: "Error removing post",
+      description: "An unexpected error occurred",
+    })
+    return false
   }
 }
 
 // Type guards
 function isBrandKit(obj: any): obj is BrandKit {
-  return obj && typeof obj === 'object' && typeof obj.id === 'string' && typeof obj.name === 'string';
+  return obj && typeof obj === "object" && typeof obj.id === "string" && typeof obj.name === "string"
 }
+
 function isPost(obj: any): obj is Post {
-  return obj && typeof obj === 'object' && typeof obj.id === 'string' && typeof obj.caption === 'string' && typeof obj.image_url === 'string';
+  return (
+    obj &&
+    typeof obj === "object" &&
+    typeof obj.id === "string" &&
+    typeof obj.caption === "string" &&
+    typeof obj.image_url === "string"
+  )
 }
 
 // Helper: Convert UTC ISO string to 24-hour EST string (HH:MM)
-function utcToEst24Hour(utcIso: string) {
-  if (!utcIso) return "";
-  const utcDate = new Date(utcIso);
-  // Subtract 5 hours for EST
-  utcDate.setUTCHours(utcDate.getUTCHours() - 5);
-  // Format as 24-hour time
-  return utcDate.toISOString().slice(11, 16); // "HH:MM"
-}
-
 // Helper: Convert UTC timestamp string (from DB) to EST 'YYYY-MM-DD' and 'HH:MM' strings
-function utcTimestampToEstDateTime(utcString: string): { date: string, time: string } {
-  if (!utcString) return { date: '', time: '' };
-  try {
-    // Accept both 'YYYY-MM-DDTHH:MM:SSZ' and 'YYYY-MM-DD HH:MM:SS' (no T, no Z)
-    let isoString = utcString;
-    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(utcString)) {
-      // Convert 'YYYY-MM-DD HH:MM:SS' to 'YYYY-MM-DDTHH:MM:SSZ'
-      isoString = utcString.replace(' ', 'T') + 'Z';
-    }
-    const utcDate = new Date(isoString);
-    if (isNaN(utcDate.getTime())) return { date: '', time: '' };
-    // EST is UTC-5
-    utcDate.setHours(utcDate.getHours() - 5);
-    const estDate = utcDate.toISOString().split('T')[0];
-    const estTime = utcDate.toISOString().slice(11, 16); // 'HH:MM'
-    return { date: estDate, time: estTime };
-  } catch {
-    return { date: '', time: '' };
-  }
-}
 
 export default function SchedulerPage() {
+  // Use localStorage to persist the selected brand kit
+  const [selectedBrandKitId, setSelectedBrandKitId] = useState<string>(() => {
+    // Try to get the stored brand kit ID from localStorage
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("selectedBrandKitId") || ""
+    }
+    return ""
+  })
   const [unscheduledPosts, setUnscheduledPosts] = useState<Post[]>([])
   const [brandKits, setBrandKits] = useState<BrandKit[]>([])
-  const [selectedBrandKitId, setSelectedBrandKitId] = useState<string>("")
   const [weekDays, setWeekDays] = useState(generateWeekDays())
   const [monthDays, setMonthDays] = useState(generateMonthDays())
   const [isConnected, setIsConnected] = useState(false)
@@ -219,62 +295,110 @@ export default function SchedulerPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingBrandKits, setLoadingBrandKits] = useState(true)
+  const [loadingPosts, setLoadingPosts] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   // Centralized fetch function
   const fetchAndSync = async (brandKitId: string, date: Date) => {
-    setLoading(true)
-    const postsRaw = await getPosts(brandKitId)
-    const posts = Array.isArray(postsRaw) ? postsRaw.filter(isPost) : []
-    const scheduledPostsRaw = await fetchScheduledPosts(brandKitId)
-    const scheduledPosts = Array.isArray(scheduledPostsRaw) ? scheduledPostsRaw.filter(isPost) : []
-    const scheduledPostIds = scheduledPosts.map(sp => sp.id)
-    setUnscheduledPosts(posts.filter(isPost).filter(p => !scheduledPostIds.includes(p.id)))
-    const newWeekDays = generateWeekDays(date)
-    const newMonthDays = generateMonthDays(date)
-    // Map scheduled posts into slots
-    scheduledPosts.forEach((post) => {
-      if (!isPost(post) || !post.scheduled_for) return;
-      // Convert UTC timestamp to EST date and time
-      const { date: estDateStr, time: estTime } = utcTimestampToEstDateTime(post.scheduled_for);
-      // Week view
-      newWeekDays.forEach(day => {
-        const dayDateStr = day.date.toISOString().split('T')[0];
-        if (dayDateStr === estDateStr) {
-          let slot = day.slots.find(s => s.time === estTime)
-          if (!slot) {
-            slot = { id: `slot-${day.dayNumber}-${estTime}`, time: estTime, post: null }
-            day.slots.push(slot)
+    if (!brandKitId) return
+
+    setLoadingPosts(true)
+    try {
+      const postsRaw = await getPosts(brandKitId)
+      const posts = Array.isArray(postsRaw) ? postsRaw.filter(isPost) : []
+      const scheduledPostsRaw = await fetchScheduledPosts(brandKitId)
+      const scheduledPosts = Array.isArray(scheduledPostsRaw) ? scheduledPostsRaw.filter(isPost) : []
+      const scheduledPostIds = scheduledPosts.map((sp) => sp.id)
+      setUnscheduledPosts(posts.filter(isPost).filter((p) => !scheduledPostIds.includes(p.id)))
+
+      const newWeekDays = generateWeekDays(date)
+      const newMonthDays = generateMonthDays(date)
+
+      // Map scheduled posts into slots
+      scheduledPosts.forEach((post) => {
+        if (!isPost(post) || !post.scheduled_for) return
+        // Parse date and time (already in EST since we're storing without timezone)
+        const { date: estDateStr, time: estTime } = parseDateTime(post.scheduled_for)
+
+        // Week view
+        newWeekDays.forEach((day) => {
+          const dayDateStr = day.date.toISOString().split("T")[0]
+          if (dayDateStr === estDateStr) {
+            let slot = day.slots.find((s) => s.time === estTime)
+            if (!slot) {
+              slot = { id: `slot-${day.dayNumber}-${estTime}-${Date.now()}`, time: estTime, post: null }
+              day.slots.push(slot)
+            }
+            slot.post = post
           }
-          slot.post = post
-        }
-      })
-      // Month view
-      newMonthDays.forEach(day => {
-        const dayDateStr = day.date.toISOString().split('T')[0];
-        if (dayDateStr === estDateStr) {
-          let slot = day.slots.find(s => s.time === estTime)
-          if (!slot) {
-            slot = { id: `month-slot-${day.dayNumber}-${estTime}`, time: estTime, post: null }
-            day.slots.push(slot)
+        })
+
+        // Month view
+        newMonthDays.forEach((day) => {
+          const dayDateStr = day.date.toISOString().split("T")[0]
+          if (dayDateStr === estDateStr) {
+            let slot = day.slots.find((s) => s.time === estTime)
+            if (!slot) {
+              slot = { id: `month-slot-${day.dayNumber}-${estTime}-${Date.now()}`, time: estTime, post: null }
+              day.slots.push(slot)
+            }
+            slot.post = post
           }
-          slot.post = post
-        }
+        })
       })
-    })
-    setWeekDays(newWeekDays)
-    setMonthDays(newMonthDays)
-    setLoading(false)
+
+      setWeekDays(newWeekDays)
+      setMonthDays(newMonthDays)
+    } catch (error) {
+      console.error("Error fetching data:", error)
+      toast({
+        title: "Error loading data",
+        description: "Failed to load posts and schedule data",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingPosts(false)
+    }
   }
 
   // Load brand kits on mount
   useEffect(() => {
     async function loadBrandKits() {
-      const kitsRaw = await getBrandKits()
-      const kits = Array.isArray(kitsRaw) ? kitsRaw.filter(isBrandKit) : []
-      setBrandKits(kits)
-      const firstKit = kits.find(isBrandKit)
-      if (firstKit && typeof firstKit.id === 'string') {
-        setSelectedBrandKitId(firstKit.id)
+      setLoadingBrandKits(true)
+      try {
+        const kitsRaw = await getBrandKits()
+        const kits = Array.isArray(kitsRaw) ? kitsRaw.filter(isBrandKit) : []
+        setBrandKits(kits)
+
+        // If we have a stored brand kit ID, check if it exists in the loaded kits
+        if (selectedBrandKitId) {
+          const kitExists = kits.some((kit) => kit.id === selectedBrandKitId)
+          if (!kitExists && kits.length > 0) {
+            // If the stored kit doesn't exist anymore, use the first available kit
+            const firstKit = kits.find(isBrandKit)
+            if (firstKit && typeof firstKit.id === "string") {
+              setSelectedBrandKitId(firstKit.id)
+              localStorage.setItem("selectedBrandKitId", firstKit.id)
+            }
+          }
+        } else if (kits.length > 0) {
+          // If no kit is selected yet, use the first one
+          const firstKit = kits.find(isBrandKit)
+          if (firstKit && typeof firstKit.id === "string") {
+            setSelectedBrandKitId(firstKit.id)
+            localStorage.setItem("selectedBrandKitId", firstKit.id)
+          }
+        }
+      } catch (error) {
+        console.error("Error loading brand kits:", error)
+        toast({
+          title: "Error loading brand kits",
+          description: "Failed to load your brand kits",
+          variant: "destructive",
+        })
+      } finally {
+        setLoadingBrandKits(false)
       }
     }
     loadBrandKits()
@@ -288,6 +412,7 @@ export default function SchedulerPage() {
 
   // Navigation handlers
   const goToToday = () => setCurrentDate(new Date())
+
   const navigatePrevious = () => {
     const newDate = new Date(currentDate)
     if (viewMode === "week") {
@@ -297,6 +422,7 @@ export default function SchedulerPage() {
     }
     setCurrentDate(newDate)
   }
+
   const navigateNext = () => {
     const newDate = new Date(currentDate)
     if (viewMode === "week") {
@@ -312,100 +438,205 @@ export default function SchedulerPage() {
     setSelectedDay(date)
   }
 
-  // Drag and drop handler (to be further improved for animation and slot highlight)
-  const handleDragEnd = (result: DropResult) => {
+  // Drag and drop handlers
+  const handleDragStart = () => {
+    setIsDragging(true)
+  }
+
+  const handleDragEnd = async (result: DropResult) => {
+    setIsDragging(false)
     const { source, destination } = result
 
     if (!destination) return
 
     if (source.droppableId === "unscheduled-posts" && destination.droppableId !== "unscheduled-posts") {
       const post = unscheduledPosts[source.index]
+      if (!post) return
+
+      // Optimistically update UI
       const newUnscheduledPosts = [...unscheduledPosts]
       newUnscheduledPosts.splice(source.index, 1)
       setUnscheduledPosts(newUnscheduledPosts)
 
       if (viewMode === "week") {
         const [_, dayIndexStr, slotIndexStr] = destination.droppableId.split("-")
-        const dayIndex = parseInt(dayIndexStr, 10)
-        const slotIndex = parseInt(slotIndexStr, 10)
+        const dayIndex = Number.parseInt(dayIndexStr, 10)
+        const slotIndex = Number.parseInt(slotIndexStr, 10)
+
+        if (isNaN(dayIndex) || isNaN(slotIndex)) return
+
         const newWeekDays = [...weekDays]
         newWeekDays[dayIndex].slots[slotIndex].post = post
         setWeekDays(newWeekDays)
-        const date = newWeekDays[dayIndex].date.toISOString().split('T')[0]
+
+        const date = newWeekDays[dayIndex].date.toISOString().split("T")[0]
         const time = newWeekDays[dayIndex].slots[slotIndex].time
-        if (post) saveScheduledPost(post.id, date, time, selectedBrandKitId)
+
+        // Save to database
+        const success = await saveScheduledPost(post.id, date, time, selectedBrandKitId)
+
+        // Revert UI if save failed
+        if (!success) {
+          newWeekDays[dayIndex].slots[slotIndex].post = null
+          setWeekDays(newWeekDays)
+          setUnscheduledPosts([...newUnscheduledPosts, post])
+        }
       } else {
         const [_, dayIndexStr, slotIndexStr] = destination.droppableId.split("-")
-        const dayIndex = parseInt(dayIndexStr, 10)
-        const slotIndex = parseInt(slotIndexStr, 10)
+        const dayIndex = Number.parseInt(dayIndexStr, 10)
+        const slotIndex = Number.parseInt(slotIndexStr, 10)
+
+        if (isNaN(dayIndex) || isNaN(slotIndex)) return
+
         const newMonthDays = [...monthDays]
         if (!newMonthDays[dayIndex].slots[slotIndex].post) {
           newMonthDays[dayIndex].slots[slotIndex].post = post
           setMonthDays(newMonthDays)
-          const date = newMonthDays[dayIndex].date.toISOString().split('T')[0]
+
+          const date = newMonthDays[dayIndex].date.toISOString().split("T")[0]
           const time = newMonthDays[dayIndex].slots[slotIndex].time
-          if (post) saveScheduledPost(post.id, date, time, selectedBrandKitId)
+
+          // Save to database
+          const success = await saveScheduledPost(post.id, date, time, selectedBrandKitId)
+
+          // Revert UI if save failed
+          if (!success) {
+            newMonthDays[dayIndex].slots[slotIndex].post = null
+            setMonthDays(newMonthDays)
+            setUnscheduledPosts([...newUnscheduledPosts, post])
+          }
         }
       }
     } else if (destination.droppableId === "unscheduled-posts") {
       let post
+
       if (viewMode === "week") {
         const [_, dayIndexStr, slotIndexStr] = source.droppableId.split("-")
-        const dayIndex = parseInt(dayIndexStr, 10)
-        const slotIndex = parseInt(slotIndexStr, 10)
+        const dayIndex = Number.parseInt(dayIndexStr, 10)
+        const slotIndex = Number.parseInt(slotIndexStr, 10)
+
+        if (isNaN(dayIndex) || isNaN(slotIndex)) return
+
         const newWeekDays = [...weekDays]
         post = newWeekDays[dayIndex].slots[slotIndex].post
+
+        if (!post) return
+
+        // Optimistically update UI
         newWeekDays[dayIndex].slots[slotIndex].post = null
         setWeekDays(newWeekDays)
-        if (post) removeScheduledPost(post.id, selectedBrandKitId)
+
+        // Save to database
+        const success = await removeScheduledPost(post.id, selectedBrandKitId)
+
+        // Revert UI if save failed
+        if (!success) {
+          newWeekDays[dayIndex].slots[slotIndex].post = post
+          setWeekDays(newWeekDays)
+          return
+        }
       } else {
         const [_, dayIndexStr, slotIndexStr] = source.droppableId.split("-")
-        const dayIndex = parseInt(dayIndexStr, 10)
-        const slotIndex = parseInt(slotIndexStr, 10)
+        const dayIndex = Number.parseInt(dayIndexStr, 10)
+        const slotIndex = Number.parseInt(slotIndexStr, 10)
+
+        if (isNaN(dayIndex) || isNaN(slotIndex)) return
+
         const newMonthDays = [...monthDays]
         post = newMonthDays[dayIndex].slots[slotIndex].post
+
+        if (!post) return
+
+        // Optimistically update UI
         newMonthDays[dayIndex].slots[slotIndex].post = null
         setMonthDays(newMonthDays)
-        if (post) removeScheduledPost(post.id, selectedBrandKitId)
+
+        // Save to database
+        const success = await removeScheduledPost(post.id, selectedBrandKitId)
+
+        // Revert UI if save failed
+        if (!success) {
+          newMonthDays[dayIndex].slots[slotIndex].post = post
+          setMonthDays(newMonthDays)
+          return
+        }
       }
+
       if (post) setUnscheduledPosts([...unscheduledPosts, post])
     } else {
       let sourcePost
+
       if (viewMode === "week") {
         const [_, sDayIndexStr, sSlotIndexStr] = source.droppableId.split("-")
         const [__, dDayIndexStr, dSlotIndexStr] = destination.droppableId.split("-")
-        const sDayIndex = parseInt(sDayIndexStr, 10)
-        const sSlotIndex = parseInt(sSlotIndexStr, 10)
-        const dDayIndex = parseInt(dDayIndexStr, 10)
-        const dSlotIndex = parseInt(dSlotIndexStr, 10)
+
+        const sDayIndex = Number.parseInt(sDayIndexStr, 10)
+        const sSlotIndex = Number.parseInt(sSlotIndexStr, 10)
+        const dDayIndex = Number.parseInt(dDayIndexStr, 10)
+        const dSlotIndex = Number.parseInt(dSlotIndexStr, 10)
+
+        if (isNaN(sDayIndex) || isNaN(sSlotIndex) || isNaN(dDayIndex) || isNaN(dSlotIndex)) return
+
         const newWeekDays = [...weekDays]
         sourcePost = newWeekDays[sDayIndex].slots[sSlotIndex].post
+
+        if (!sourcePost) return
+
+        // Optimistically update UI
         newWeekDays[sDayIndex].slots[sSlotIndex].post = null
         newWeekDays[dDayIndex].slots[dSlotIndex].post = sourcePost
         setWeekDays(newWeekDays)
-        const date = newWeekDays[dDayIndex].date.toISOString().split('T')[0]
+
+        const date = newWeekDays[dDayIndex].date.toISOString().split("T")[0]
         const time = newWeekDays[dDayIndex].slots[dSlotIndex].time
-        if (sourcePost) saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId)
+
+        // Save to database
+        const success = await saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId)
+
+        // Revert UI if save failed
+        if (!success) {
+          newWeekDays[sDayIndex].slots[sSlotIndex].post = sourcePost
+          newWeekDays[dDayIndex].slots[dSlotIndex].post = null
+          setWeekDays(newWeekDays)
+        }
       } else {
         const [_, sDayIndexStr, sSlotIndexStr] = source.droppableId.split("-")
         const [__, dDayIndexStr, dSlotIndexStr] = destination.droppableId.split("-")
-        const sDayIndex = parseInt(sDayIndexStr, 10)
-        const sSlotIndex = parseInt(sSlotIndexStr, 10)
-        const dDayIndex = parseInt(dDayIndexStr, 10)
-        const dSlotIndex = parseInt(dSlotIndexStr, 10)
+
+        const sDayIndex = Number.parseInt(sDayIndexStr, 10)
+        const sSlotIndex = Number.parseInt(sSlotIndexStr, 10)
+        const dDayIndex = Number.parseInt(dDayIndexStr, 10)
+        const dSlotIndex = Number.parseInt(dSlotIndexStr, 10)
+
+        if (isNaN(sDayIndex) || isNaN(sSlotIndex) || isNaN(dDayIndex) || isNaN(dSlotIndex)) return
+
         const newMonthDays = [...monthDays]
         sourcePost = newMonthDays[sDayIndex].slots[sSlotIndex].post
+
+        if (!sourcePost) return
+
+        // Optimistically update UI
         newMonthDays[sDayIndex].slots[sSlotIndex].post = null
         newMonthDays[dDayIndex].slots[dSlotIndex].post = sourcePost
         setMonthDays(newMonthDays)
-        const date = newMonthDays[dDayIndex].date.toISOString().split('T')[0]
+
+        const date = newMonthDays[dDayIndex].date.toISOString().split("T")[0]
         const time = newMonthDays[dDayIndex].slots[dSlotIndex].time
-        if (sourcePost) saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId)
+
+        // Save to database
+        const success = await saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId)
+
+        // Revert UI if save failed
+        if (!success) {
+          newMonthDays[sDayIndex].slots[sSlotIndex].post = sourcePost
+          newMonthDays[dDayIndex].slots[dSlotIndex].post = null
+          setMonthDays(newMonthDays)
+        }
       }
     }
   }
 
-  const addSlot = (dayIndex: number, view: 'week' | 'month') => {
+  const addSlot = (dayIndex: number, view: "week" | "month") => {
     if (view === "week") {
       const newWeekDays = [...weekDays]
       const newSlot = {
@@ -415,6 +646,10 @@ export default function SchedulerPage() {
       }
       newWeekDays[dayIndex].slots.push(newSlot)
       setWeekDays(newWeekDays)
+      toast({
+        title: "Slot added",
+        description: "New time slot added to schedule",
+      })
     } else {
       const newMonthDays = [...monthDays]
       const newSlot = {
@@ -424,330 +659,616 @@ export default function SchedulerPage() {
       }
       newMonthDays[dayIndex].slots.push(newSlot)
       setMonthDays(newMonthDays)
+      toast({
+        title: "Slot added",
+        description: "New time slot added to schedule",
+      })
     }
   }
 
-  const updateSlotTime = (dayIndex: number, slotIndex: number, newTime: string, view: 'week' | 'month') => {
+  const updateSlotTime = async (dayIndex: number, slotIndex: number, newTime: string, view: "week" | "month") => {
     if (view === "week") {
       const newWeekDays = [...weekDays]
+      const oldTime = newWeekDays[dayIndex].slots[slotIndex].time
       newWeekDays[dayIndex].slots[slotIndex].time = newTime
+      setWeekDays(newWeekDays)
+
       if (newWeekDays[dayIndex].slots[slotIndex].post) {
-        const date = newWeekDays[dayIndex].date.toISOString().split('T')[0]
-        if (newWeekDays[dayIndex].slots[slotIndex].post) saveScheduledPost(newWeekDays[dayIndex].slots[slotIndex].post.id, date, newTime, selectedBrandKitId)
+        const post = newWeekDays[dayIndex].slots[slotIndex].post
+        if (!post) return
+
+        const date = newWeekDays[dayIndex].date.toISOString().split("T")[0]
+        const success = await saveScheduledPost(post.id, date, newTime, selectedBrandKitId)
+
+        // Revert if failed
+        if (!success) {
+          newWeekDays[dayIndex].slots[slotIndex].time = oldTime
+          setWeekDays(newWeekDays)
+        }
       }
+    } else {
+      const newMonthDays = [...monthDays]
+      const oldTime = newMonthDays[dayIndex].slots[slotIndex].time
+      newMonthDays[dayIndex].slots[slotIndex].time = newTime
+      setMonthDays(newMonthDays)
+
+      if (newMonthDays[dayIndex].slots[slotIndex].post) {
+        const post = newMonthDays[dayIndex].slots[slotIndex].post
+        if (!post) return
+
+        const date = newMonthDays[dayIndex].date.toISOString().split("T")[0]
+        const success = await saveScheduledPost(post.id, date, newTime, selectedBrandKitId)
+
+        // Revert if failed
+        if (!success) {
+          newMonthDays[dayIndex].slots[slotIndex].time = oldTime
+          setMonthDays(newMonthDays)
+        }
+      }
+    }
+  }
+
+  const handleDeletePost = async (postId: string, dayIndex: number, slotIndex: number, view: "week" | "month") => {
+    let post: Post | null = null
+
+    if (view === "week") {
+      const newWeekDays = [...weekDays]
+      post = newWeekDays[dayIndex].slots[slotIndex].post
+      if (!post) return
+
+      // Optimistically update UI
+      newWeekDays[dayIndex].slots[slotIndex].post = null
       setWeekDays(newWeekDays)
     } else {
       const newMonthDays = [...monthDays]
-      newMonthDays[dayIndex].slots[slotIndex].time = newTime
-      if (newMonthDays[dayIndex].slots[slotIndex].post) {
-        const date = newMonthDays[dayIndex].date.toISOString().split('T')[0]
-        if (newMonthDays[dayIndex].slots[slotIndex].post) saveScheduledPost(newMonthDays[dayIndex].slots[slotIndex].post.id, date, newTime, selectedBrandKitId)
-      }
+      post = newMonthDays[dayIndex].slots[slotIndex].post
+      if (!post) return
+
+      // Optimistically update UI
+      newMonthDays[dayIndex].slots[slotIndex].post = null
       setMonthDays(newMonthDays)
+    }
+
+    // Save to database
+    const success = await removeScheduledPost(post.id, selectedBrandKitId)
+
+    // Add back to unscheduled if successful
+    if (success) {
+      setUnscheduledPosts([...unscheduledPosts, post])
+    } else {
+      // Revert UI if failed
+      if (view === "week") {
+        const newWeekDays = [...weekDays]
+        newWeekDays[dayIndex].slots[slotIndex].post = post
+        setWeekDays(newWeekDays)
+      } else {
+        const newMonthDays = [...monthDays]
+        newMonthDays[dayIndex].slots[slotIndex].post = post
+        setMonthDays(newMonthDays)
+      }
     }
   }
 
-  return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      {/* Top Navigation Bar */}
-      <header className="border-b bg-white px-4 py-3 shadow-sm dark:bg-gray-950">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Select value={selectedBrandKitId} onValueChange={setSelectedBrandKitId}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select Brand Kit" />
-              </SelectTrigger>
-              <SelectContent>
-                {brandKits.map((kit) => (
-                  <SelectItem key={kit.id} value={kit.id}>{kit.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigatePrevious}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigateNext}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            <h2 className="text-lg font-semibold">
-              {currentDate.toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-                ...(viewMode === "week" ? { day: "numeric" } : {}),
-              })}
-            </h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={viewMode} onValueChange={(value) => setViewMode(value as 'week' | 'month')}>
-              <SelectTrigger className="w-[140px]">
-                <Calendar className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="View" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">Week View</SelectItem>
-                <SelectItem value="month">Month View</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={() => setIsConnected(!isConnected)}
-              variant={isConnected ? "outline" : "default"}
-              className="flex items-center gap-2"
-            >
-              <Instagram className="h-4 w-4" />
-              {isConnected ? "Instagram Connected" : "Connect Instagram"}
-            </Button>
-          </div>
-        </div>
-      </header>
+  const handleConnectInstagram = () => {
+    setIsConnected(!isConnected)
+    toast({
+      title: isConnected ? "Instagram disconnected" : "Instagram connected",
+      description: isConnected
+        ? "Your Instagram account has been disconnected"
+        : "Your Instagram account has been connected successfully",
+    })
+  }
 
-      {/* Main Content Area */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <aside className="flex w-72 flex-col border-r bg-gray-50 dark:bg-gray-900">
-            <div className="p-4">
-              <h3 className="mb-2 font-semibold">Unscheduled Posts</h3>
-              <p className="text-sm text-muted-foreground">Drag posts to schedule them</p>
+  const handleRefresh = () => {
+    if (!selectedBrandKitId) return
+    fetchAndSync(selectedBrandKitId, currentDate)
+    toast({
+      title: "Schedule refreshed",
+      description: "Your schedule has been updated with the latest data",
+    })
+  }
+
+  return (
+    <TooltipProvider>
+      <div className="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
+        {/* Top Navigation Bar */}
+        <header className="border-b bg-white px-4 py-3 shadow-sm dark:bg-gray-950">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              {loadingBrandKits ? (
+                <Skeleton className="h-10 w-[180px]" />
+              ) : (
+                <Select
+                  value={selectedBrandKitId}
+                  onValueChange={(value) => {
+                    setSelectedBrandKitId(value)
+                    localStorage.setItem("selectedBrandKitId", value)
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select Brand Kit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brandKits.length === 0 ? (
+                      <SelectItem value="no-kits" disabled>
+                        No brand kits available
+                      </SelectItem>
+                    ) : (
+                      brandKits.map((kit) => (
+                        <SelectItem key={kit.id} value={kit.id}>
+                          {kit.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button variant="outline" size="sm" onClick={goToToday} className="font-medium">
+                Today
+              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={navigatePrevious}
+                  aria-label="Previous"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigateNext} aria-label="Next">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <h2 className="text-lg font-semibold">
+                {currentDate.toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                  ...(viewMode === "week" ? { day: "numeric" } : {}),
+                })}
+              </h2>
+              <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={loadingPosts} className="ml-2">
+                {loadingPosts ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <svg
+                    className="h-4 w-4 mr-2"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                    <path d="M16 21h5v-5" />
+                  </svg>
+                )}
+                Refresh
+              </Button>
             </div>
-            <Droppable droppableId="unscheduled-posts">
-              {(provided) => (
-                <div {...provided.droppableProps} ref={provided.innerRef} className="flex-1 overflow-y-auto p-4">
-                  <div className="space-y-3">
-                    {unscheduledPosts.map((post, index) => (
-                      <Draggable key={post.id} draggableId={post.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`group cursor-grab rounded-lg border bg-card p-3 shadow-sm transition-all ${
-                              snapshot.isDragging ? "rotate-1 scale-105 shadow-md" : ""
-                            }`}
-                          >
+            <div className="flex items-center gap-3">
+              <Select value={viewMode} onValueChange={(value) => setViewMode(value as "week" | "month")}>
+                <SelectTrigger className="w-[140px]">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="View" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">Week View</SelectItem>
+                  <SelectItem value="month">Month View</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleConnectInstagram}
+                variant={isConnected ? "outline" : "default"}
+                className="flex items-center gap-2"
+              >
+                <Instagram className="h-4 w-4" />
+                {isConnected ? "Instagram Connected" : "Connect Instagram"}
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="flex flex-1 overflow-hidden">
+            {/* Sidebar */}
+            <aside className="flex w-72 flex-col border-r bg-white dark:bg-gray-900">
+              <div className="p-4 border-b">
+                <h3 className="font-semibold">Unscheduled Posts</h3>
+                <p className="text-sm text-muted-foreground">Drag posts to schedule them</p>
+              </div>
+              <Droppable droppableId="unscheduled-posts">
+                {(provided, snapshot) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className={`flex-1 overflow-y-auto p-4 ${snapshot.isDraggingOver ? "bg-primary/5" : ""}`}
+                  >
+                    {loadingPosts ? (
+                      <div className="space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="rounded-lg border p-3">
                             <div className="flex gap-3">
-                              <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image
-                                  src={post.image_url || "/placeholder.svg"}
-                                  alt={`Post ${post.id}`}
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
+                              <Skeleton className="h-14 w-14 rounded-md" />
                               <div className="flex-1">
-                                <p className="text-sm line-clamp-2">{post.caption}</p>
-                                <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                                  <span>Drag to schedule</span>
-                                </div>
+                                <Skeleton className="h-4 w-full mb-2" />
+                                <Skeleton className="h-3 w-2/3" />
                               </div>
                             </div>
                           </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+                        ))}
+                      </div>
+                    ) : unscheduledPosts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                        <svg
+                          className="h-12 w-12 text-muted-foreground mb-2"
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect width="18" height="18" x="3" y="3" rx="2" />
+                          <path d="M9 8h7" />
+                          <path d="M8 12h6" />
+                          <path d="M11 16h4" />
+                        </svg>
+                        <h4 className="font-medium mb-1">No unscheduled posts</h4>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Create new posts or unschedule existing ones to see them here
+                        </p>
+                        <Button size="sm" onClick={() => (window.location.href = "/dashboard")} className="gap-1">
+                          <Plus className="h-4 w-4" /> Create Post
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {unscheduledPosts.map((post, index) => (
+                          <Draggable key={post.id} draggableId={post.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`group cursor-grab rounded-lg border bg-card p-3 shadow-sm transition-all ${
+                                  snapshot.isDragging ? "rotate-1 scale-105 shadow-md" : ""
+                                }`}
+                              >
+                                <div className="flex gap-3">
+                                  <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-md">
+                                    <Image
+                                      src={post.image_url || "/placeholder.svg"}
+                                      alt={`Post ${post.id}`}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-sm line-clamp-2">{post.caption}</p>
+                                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                      <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                        Unscheduled
+                                      </Badge>
+                                      <span className="ml-1">Drag to schedule</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Droppable>
+              <div className="border-t p-4">
+                <Button className="w-full" size="sm" onClick={() => (window.location.href = "/dashboard")}>
+                  <Plus className="mr-2 h-4 w-4" /> Add Post
+                </Button>
+              </div>
+            </aside>
+
+            {/* Calendar Area */}
+            <main className="flex-1 overflow-auto bg-white p-4 dark:bg-gray-950">
+              {loadingPosts && !isDragging ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-muted-foreground">Loading schedule...</p>
                   </div>
                 </div>
-              )}
-            </Droppable>
-            <div className="border-t p-4">
-              <Button className="w-full" size="sm" onClick={() => window.location.href = "/dashboard"}>
-                <Plus className="mr-2 h-4 w-4" /> Add Post
-              </Button>
-            </div>
-          </aside>
-
-          {/* Calendar Area */}
-          <main className="flex-1 overflow-auto bg-white p-4 dark:bg-gray-950">
-            {viewMode === "week" ? (
-              <div className="grid h-full grid-cols-7 gap-4">
-                {weekDays.map((day, dayIndex) => (
-                  <div
-                    key={`day-${dayIndex}`}
-                    className={`flex flex-col rounded-lg border ${day.isToday ? "border-primary bg-primary/5" : ""}`}
-                  >
-                    <div className={`p-2 text-center ${day.isToday ? "font-bold text-primary" : ""}`}>
-                      <p className="text-sm font-medium">{day.dayName}</p>
-                      <p className="text-xl">{day.dayNumber}</p>
-                      <p className="text-xs text-muted-foreground">{day.month}</p>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-3 p-2">
-                      {day.slots.map((slot, slotIndex) => (
-                        <Droppable
-                          key={slot.id}
-                          droppableId={`slot-${dayIndex}-${slotIndex}`}
-                          isDropDisabled={isPastDate(day.date) || !!slot.post}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={`flex min-h-[100px] flex-col rounded-md border p-2 transition-colors ${
-                                snapshot.isDraggingOver && !isPastDate(day.date) && !!slot.post ? "border-primary/50 bg-primary/5" : ""
-                              } ${isPastDate(day.date) ? "opacity-50" : ""}`}
-                            >
-                              <div className="mb-1 flex items-center gap-2">
-                                <Clock className="h-3 w-3" />
-                                  <span className="text-[10px] text-muted-foreground font-bold">EST</span>
-                                <Input
-                                  type="text"
-                                  value={slot.time}
-                                  onChange={(e) => updateSlotTime(dayIndex, slotIndex, e.target.value, "week")}
-                                  className="w-16 text-xs"
-                                  disabled={isPastDate(day.date)}
-                                />
-                              
+              ) : viewMode === "week" ? (
+                <div className="grid h-full grid-cols-7 gap-4">
+                  {weekDays.map((day, dayIndex) => (
+                    <div
+                      key={`day-${dayIndex}`}
+                      className={`flex flex-col rounded-lg border ${day.isToday ? "border-primary bg-primary/5" : ""}`}
+                    >
+                      <div
+                        className={`p-2 text-center ${day.isToday ? "font-bold text-primary" : ""}`}
+                        onClick={() => handleDayClick(day.date)}
+                      >
+                        <p className="text-sm font-medium">{day.dayName}</p>
+                        <p className="text-xl">{day.dayNumber}</p>
+                        <p className="text-xs text-muted-foreground">{day.month}</p>
+                      </div>
+                      <div className="flex flex-1 flex-col gap-3 p-2">
+                        {day.slots.map((slot, slotIndex) => (
+                          <Droppable
+                            key={slot.id}
+                            droppableId={`slot-${dayIndex}-${slotIndex}`}
+                            isDropDisabled={isPastDate(day.date) || !!slot.post}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className={`flex min-h-[100px] flex-col rounded-md border p-2 transition-colors ${
+                                  snapshot.isDraggingOver && !isPastDate(day.date) && !slot.post
+                                    ? "border-primary/50 bg-primary/5"
+                                    : isPastDate(day.date)
+                                      ? "bg-gray-50 dark:bg-gray-800/50"
+                                      : ""
+                                } ${isPastDate(day.date) ? "opacity-70" : ""}`}
+                              >
+                                <div className="mb-1 flex items-center gap-2">
+                                  <Clock className="h-3 w-3 text-muted-foreground" />
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-[10px] font-medium text-muted-foreground">EST</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">Eastern Standard Time</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <Input
+                                    type="text"
+                                    value={slot.time}
+                                    onChange={(e) => updateSlotTime(dayIndex, slotIndex, e.target.value, "week")}
+                                    className="h-6 w-16 text-xs"
+                                    disabled={isPastDate(day.date)}
+                                  />
+                                </div>
+                                {slot.post && (
+                                  <Draggable draggableId={`scheduled-${slot.post.id}`} index={0}>
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        className={`group flex flex-col gap-2 rounded-md bg-white p-2 shadow-sm transition-all dark:bg-gray-800 ${
+                                          snapshot.isDragging ? "rotate-1 scale-105 shadow-md" : ""
+                                        }`}
+                                      >
+                                        <div className="relative h-12 w-full overflow-hidden rounded-md">
+                                          {slot.post && (
+                                            <Image
+                                              src={slot.post.image_url || "/placeholder.svg"}
+                                              alt={`Post ${slot.post.id}`}
+                                              fill
+                                              className="object-cover"
+                                            />
+                                          )}
+                                          <div className="absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100">
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-6 w-6 bg-white/80 backdrop-blur-sm dark:bg-gray-800/80"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    window.location.href = `/dashboard/edit/${slot.post?.id}`
+                                                  }}
+                                                >
+                                                  <Edit2 className="h-3 w-3" />
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p className="text-xs">Edit post</p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-6 w-6 bg-white/80 backdrop-blur-sm dark:bg-gray-800/80"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    if (slot.post) {
+                                                      handleDeletePost(slot.post.id, dayIndex, slotIndex, "week")
+                                                    }
+                                                  }}
+                                                >
+                                                  <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p className="text-xs">Unschedule post</p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </div>
+                                        </div>
+                                        {slot.post && <p className="text-xs line-clamp-2">{slot.post.caption}</p>}
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                )}
+                                {provided.placeholder}
                               </div>
-                              {slot.post && (
-                                <Draggable draggableId={`scheduled-${slot.post.id}`} index={0}>
-                                  {(provided, snapshot) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      className={`group flex flex-col gap-2 rounded-md bg-white p-2 shadow-sm transition-all dark:bg-gray-800 ${
-                                        snapshot.isDragging ? "rotate-1 scale-105 shadow-md" : ""
-                                      }`}
-                                    >
-                                      <div className="relative h-12 w-full overflow-hidden rounded-md">
-                                        {slot.post && (
-                                          <Image
-                                            src={slot.post.image_url || "/placeholder.svg"}
-                                            alt={`Post ${slot.post.id}`}
-                                            fill
-                                            className="object-cover"
-                                          />
-                                        )}
-                                        <div className="absolute right-1 top-1 flex opacity-0 transition-opacity group-hover:opacity-100">
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 bg-white/80 backdrop-blur-sm dark:bg-gray-800/80"
-                                          >
-                                            <Edit2 className="h-3 w-3" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 bg-white/80 backdrop-blur-sm dark:bg-gray-800/80"
-                                          >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
+                            )}
+                          </Droppable>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addSlot(dayIndex, "week")}
+                          className="text-xs h-8"
+                          disabled={isPastDate(day.date)}
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Add Slot
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-7 gap-1">
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                    <div key={day} className="p-2 text-center text-sm font-medium">
+                      {day}
+                    </div>
+                  ))}
+                  {monthDays.map((day, index) => (
+                    <div
+                      key={`month-day-${index}`}
+                      className={`min-h-[120px] border p-1 ${
+                        day.isToday
+                          ? "border-primary bg-primary/5"
+                          : day.isCurrentMonth
+                            ? ""
+                            : "bg-gray-50 opacity-50 dark:bg-gray-900"
+                      }`}
+                      onClick={() => handleDayClick(day.date)}
+                    >
+                      <div className={`mb-1 text-right text-sm ${day.isToday ? "font-bold text-primary" : ""}`}>
+                        {day.dayNumber}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {day.slots.map((slot, slotIndex) => (
+                          <Droppable
+                            key={slot.id}
+                            droppableId={`month-${index}-${slotIndex}`}
+                            isDropDisabled={isPastDate(day.date) || !!slot.post}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                className={`min-h-[40px] ${
+                                  snapshot.isDraggingOver && !isPastDate(day.date) && !slot.post
+                                    ? "border-primary/50 bg-primary/5 rounded border"
+                                    : ""
+                                } ${isPastDate(day.date) ? "opacity-70" : ""}`}
+                              >
+                                {slot.post && (
+                                  <Draggable
+                                    draggableId={`month-scheduled-${slot.post.id}-${index}-${slotIndex}`}
+                                    index={0}
+                                  >
+                                    {(provided, snapshot) => (
+                                      <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                        className={`group flex items-center gap-1 rounded bg-white p-1 text-xs shadow-sm dark:bg-gray-800 ${
+                                          snapshot.isDragging ? "rotate-1 scale-105" : ""
+                                        }`}
+                                      >
+                                        <div className="relative h-6 w-6 flex-shrink-0 overflow-hidden rounded">
+                                          {slot.post && (
+                                            <Image
+                                              src={slot.post.image_url || "/placeholder.svg"}
+                                              alt={`Post ${slot.post.id}`}
+                                              fill
+                                              className="object-cover"
+                                            />
+                                          )}
+                                        </div>
+                                        <Input
+                                          type="text"
+                                          value={slot.time}
+                                          onChange={(e) => updateSlotTime(index, slotIndex, e.target.value, "month")}
+                                          className="h-6 w-16 text-xs"
+                                          disabled={isPastDate(day.date)}
+                                        />
+                                        <span className="text-[10px] text-muted-foreground hidden sm:inline">EST</span>
+                                        <div className="ml-auto flex opacity-0 transition-opacity group-hover:opacity-100">
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-5 w-5"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  window.location.href = `/dashboard/edit/${slot.post?.id}`
+                                                }}
+                                              >
+                                                <Edit2 className="h-2.5 w-2.5" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p className="text-xs">Edit post</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-5 w-5"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  if (slot.post) {
+                                                    handleDeletePost(slot.post.id, index, slotIndex, "month")
+                                                  }
+                                                }}
+                                              >
+                                                <Trash2 className="h-2.5 w-2.5" />
+                                              </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p className="text-xs">Unschedule post</p>
+                                            </TooltipContent>
+                                          </Tooltip>
                                         </div>
                                       </div>
-                                      {slot.post && (
-                                        <p className="text-xs line-clamp-2">{slot.post.caption}</p>
-                                      )}
-                                    </div>
-                                  )}
-                                </Draggable>
-                              )}
-                              {provided.placeholder}
-                            </div>
-                          )}
-                        </Droppable>
-                      ))}
-                      <Button variant="outline" size="sm" onClick={() => addSlot(dayIndex, "week")}>
-                        Add Slot
-                      </Button>
+                                    )}
+                                  </Draggable>
+                                )}
+                                {provided.placeholder}
+                              </div>
+                            )}
+                          </Droppable>
+                        ))}
+                        {day.isCurrentMonth && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              addSlot(index, "month")
+                            }}
+                            className="text-xs h-6 mt-1"
+                            disabled={isPastDate(day.date)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-7 gap-1">
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                  <div key={day} className="p-2 text-center text-sm font-medium">{day}</div>
-                ))}
-                {monthDays.map((day, index) => (
-                  <div
-                    key={`month-day-${index}`}
-                    className={`min-h-[120px] border p-1 ${
-                      day.isToday
-                        ? "border-primary bg-primary/5"
-                        : day.isCurrentMonth
-                        ? ""
-                        : "bg-gray-50 opacity-50 dark:bg-gray-900"
-                    }`}
-                  >
-                    <div className={`mb-1 text-right text-sm ${day.isToday ? "font-bold text-primary" : ""}`}>
-                      {day.dayNumber}
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {day.slots.map((slot, slotIndex) => (
-                        <Droppable
-                          key={slot.id}
-                          droppableId={`month-${index}-${slotIndex}`}
-                          isDropDisabled={isPastDate(day.date) || !!slot.post}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={`min-h-[40px] ${isPastDate(day.date) ? "opacity-50" : ""}`}
-                            >
-                              {slot.post && (
-                                <Draggable
-                                  draggableId={`month-scheduled-${slot.post.id}-${index}-${slotIndex}`}
-                                  index={0}
-                                >
-                                  {(provided, snapshot) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      className={`group flex items-center gap-1 rounded bg-white p-1 text-xs shadow-sm dark:bg-gray-800 ${
-                                        snapshot.isDragging ? "rotate-1 scale-105" : ""
-                                      }`}
-                                    >
-                                      <div className="relative h-6 w-6 flex-shrink-0 overflow-hidden rounded">
-                                        {slot.post && (
-                                          <Image
-                                            src={slot.post.image_url || "/placeholder.svg"}
-                                            alt={`Post ${slot.post.id}`}
-                                            fill
-                                            className="object-cover"
-                                          />
-                                        )}
-                                      </div>
-                                      <Input
-                                        type="text"
-                                        value={slot.time}
-                                        onChange={(e) => updateSlotTime(index, slotIndex, e.target.value, "month")}
-                                        className="w-16 text-xs"
-                                        disabled={isPastDate(day.date)}
-                                      />
-                                      <span className="text-[10px] text-muted-foreground">Time is in EST</span>
-                                      <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
-                                        <Button variant="ghost" size="icon" className="h-4 w-4">
-                                          <Edit2 className="h-2 w-2" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-4 w-4">
-                                          <Trash2 className="h-2 w-2" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </Draggable>
-                              )}
-                              {provided.placeholder}
-                            </div>
-                          )}
-                        </Droppable>
-                      ))}
-                      <Button variant="outline" size="sm" onClick={() => addSlot(index, "month")}>
-                        Add Slot
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </main>
-        </div>
-      </DragDropContext>
-    </div>
+                  ))}
+                </div>
+              )}
+            </main>
+          </div>
+        </DragDropContext>
+      </div>
+    </TooltipProvider>
   )
 }

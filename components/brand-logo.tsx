@@ -38,6 +38,7 @@ export function BrandLogo({ size = "md", showText = true, href = "/", className 
       {showText && (
         <span className={`${textSizeClasses[size]} font-bold tracking-tight`}>
           BrandStudio<span className="font-black text-primary">AI</span>
+          <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">BETA</span>
         </span>
       )}
     </div>

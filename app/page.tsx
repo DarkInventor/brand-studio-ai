@@ -240,7 +240,7 @@ export default async function LandingPage() {
             </div>
           </div>
           <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2024 BrandStudio AI. All rights reserved.</p>
+            <p>© 2025 BrandStudio AI. All rights reserved.</p>
             <div className="mt-2 flex justify-center space-x-4">
               <Link href="#" className="hover:text-primary transition-colors">
                 Privacy Policy
