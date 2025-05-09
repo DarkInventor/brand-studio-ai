@@ -1,177 +1,3 @@
-// import OpenAI from 'openai';
-// import https from 'https'
-// import fetch from 'node-fetch'
-// import FormData from 'form-data';
-// import path from 'path';
-// import os from 'os';
-// import fs from 'fs';
-
-// const openai = new OpenAI({
-//   apiKey: process.env.OPENAI_API_KEY,
-// });
-
-// export async function generateCaption(brandKit: any, imageUrl: string) {
-//   try {
-//     console.log('Generating caption with brandKit:', brandKit, 'and imageUrl:', imageUrl);
-//     const logoInfo = brandKit.logo_url ? `Brand logo is available as a data URL.` : `No brand logo provided.`;
-//     const prompt = `
-//       Generate an Instagram caption for a post featuring an image of ${brandKit.name}.
-//       Brand details:
-//       - Description: ${brandKit.description}
-//       - Tone: ${brandKit.brand_tone}
-//       - Primary Color: ${brandKit.primary_color}
-//       - Secondary Color: ${brandKit.secondary_color}
-//       - Logo: ${logoInfo}
-//       The image shows: ${imageUrl}
-      
-//       Generate a creative, engaging caption that:
-//       1. Matches the brand's tone and style
-//       2. Is suitable for Instagram
-//       3. Includes relevant hashtags
-//       4. Is no longer than 2200 characters
-//     `;
-//     console.log('Generated prompt:', prompt);
-
-//     const response = await openai.chat.completions.create({
-//       model: "gpt-3.5-turbo-0125",
-//       messages: [
-//         {
-//           role: "system",
-//           content: "You are a creative image prompt engineer. You will be given a brand kit and a caption. You will need to generate an image prompt for a OPENAI gpt-image-1 image generation model."
-//         },
-//         {
-//           role: "user",
-//           content: prompt
-//         }
-//       ],
-//       temperature: 0.7,
-//       max_tokens: 200
-//     });
-
-//     console.log('OpenAI response:', response);
-//     return response.choices[0].message.content;
-//   } catch (error) {
-//     console.error('Error generating caption:', error);
-//     throw error;
-//   }
-// }
-
-// export async function generateImageWithGPTImage1(
-//   caption: string,
-//   brandKit?: any,
-//   n = 1,
-//   size: "1024x1024" | "auto" | "1536x1024" | "1024x1536" | "256x256" | "512x512" | "1792x1024" | "1024x1792" = "1024x1024"
-// ) {
-//   try {
-//     let prompt = caption;
-//     if (brandKit) {
-//       let logoSection = '- Logo: No logo provided.';
-//       let logoInstruction = '';
-//       if (brandKit.logo_url && typeof brandKit.logo_url === 'string' && brandKit.logo_url.startsWith('data:image/')) {
-//         // Try to extract image type and a short hash for reference
-//         const match = brandKit.logo_url.match(/^data:(image\/\w+);base64,([A-Za-z0-9+/=]+)/);
-//         const type = match ? match[1] : 'image/png';
-//         const base64 = match ? match[2] : '';
-//         const hash = base64 ? base64.slice(0, 16) + '...' : '';
-//         logoSection = `- Logo: [${type}], base64 hash: ${hash}`;
-//         logoInstruction = '\nIMPORTANT: Visually include the brand logo on the bottom right of the image.';
-//       }
-//       prompt = `Generate an Instagram post image for the following brand:\n- Name: ${brandKit.name}\n- Description: ${brandKit.description}\n- Tone: ${brandKit.brand_tone}\n- Primary Color: ${brandKit.primary_color}\n- Secondary Color: ${brandKit.secondary_color}\n${logoSection}\n\nCaption: ${caption}${logoInstruction}`;
-//     }
-//     console.log('Generating image with prompt:', prompt, 'n:', n, 'size:', size);
-//     const response = await openai.images.generate({
-//       model: "gpt-image-1",
-//       prompt,
-//       n,
-//       size,
-//     });
-//     console.log('OpenAI image generation response:', response);
-//     if (!response.data || response.data.length === 0) {
-//       console.log('No image data returned');
-//       return null;
-//     }
-//     return response;
-//   } catch (error) {
-//     console.error('Error generating image with gpt-image-1:', error);
-//     throw error;
-//   }
-// }
-
-// export async function downloadImageToBuffer(url: string): Promise<Buffer> {
-//   try {
-//     console.log('Downloading image from URL:', url);
-//     const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
-//     console.log('Fetch response status:', response.status, response.statusText);
-
-//     if (!response.ok) {
-//       console.error('Failed to fetch image:', response.status, response.statusText);
-//       throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-//     }
-//     const buffer = Buffer.from(await response.arrayBuffer());
-//     console.log('Downloaded image buffer length:', buffer.length);
-//     return buffer;
-//   } catch (err) {
-//     console.error('Error in downloadImageToBuffer:', err);
-//     throw err;
-//   }
-// }
-
-// export async function generateImageWithLogoEdit(
-//   caption: string,
-//   brandKit: any,
-//   n = 1,
-//   size: "1024x1024" | "auto" | "1536x1024" | "1024x1536" | "256x256" | "512x512" | "1792x1024" | "1024x1792" = "1024x1024"
-// ) {
-//   if (!brandKit.logo_url || typeof brandKit.logo_url !== 'string' || !brandKit.logo_url.startsWith('data:image/')) {
-//     throw new Error('Brand kit does not have a valid logo data URL');
-//   }
-//   // 1. Generate a base image from the prompt
-//   const basePrompt = `Generate an Instagram post image for the following brand:\n- Name: ${brandKit.name}\n- Description: ${brandKit.description}\n- Tone: ${brandKit.brand_tone}\n- Primary Color: ${brandKit.primary_color}\n- Secondary Color: ${brandKit.secondary_color}\n\nCaption: ${caption}`;
-//   const baseImageResponse = await openai.images.generate({
-//     model: "gpt-image-1",
-//     prompt: basePrompt,
-//     n,
-//     size,
-//     response_format: "b64_json"
-//   });
-//   if (!baseImageResponse.data || !baseImageResponse.data[0] || !baseImageResponse.data[0].b64_json) {
-//     throw new Error('Failed to generate base image for edit');
-//   }
-//   // 2. Decode base image and logo to buffers and write to temp files
-//   const baseImageBuffer = Buffer.from(baseImageResponse.data[0].b64_json, 'base64');
-//   const baseTmpPath = path.join(os.tmpdir(), `brand-base-${Date.now()}.png`);
-//   fs.writeFileSync(baseTmpPath, baseImageBuffer as Buffer);
-//   const match = brandKit.logo_url.match(/^data:(image\/\w+);base64,([A-Za-z0-9+/=]+)/);
-//   if (!match) throw new Error('Invalid logo data URL');
-//   const ext = match[1].split('/')[1];
-//   const logoBuffer = Buffer.from(match[2], 'base64');
-//   const logoTmpPath = path.join(os.tmpdir(), `brand-logo-${Date.now()}.${ext}`);
-//   fs.writeFileSync(logoTmpPath, logoBuffer as Buffer);
-//   // 3. Prepare form data for edits endpoint
-//   const form = new FormData();
-//   form.append('model', 'gpt-image-1');
-//   form.append('image[]', fs.createReadStream(baseTmpPath));
-//   form.append('image[]', fs.createReadStream(logoTmpPath));
-//   form.append('prompt', `Place the provided logo (second image) on the bottom right of the Instagram post image (first image).`);
-//   form.append('n', n);
-//   form.append('size', size);
-//   // 4. Send request
-//   const response = await fetch('https://api.openai.com/v1/images/edits', {
-//     method: 'POST',
-//     headers: {
-//       'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-//       ...form.getHeaders(),
-//     },
-//     body: form,
-//   });
-//   fs.unlinkSync(baseTmpPath);
-//   fs.unlinkSync(logoTmpPath);
-//   if (!response.ok) {
-//     const errText = await response.text();
-//     throw new Error(`OpenAI edits endpoint error: ${errText}`);
-//   }
-//   return await response.json();
-// }
 import OpenAI from 'openai';
 import https from 'https'
 // @ts-expect-error: no types for node-fetch
@@ -207,17 +33,17 @@ export async function generatePromptForImage(brandKit: any) {
       4. Include guidance on composition, lighting, and mood
       5. Be detailed enough for an AI image generator to create a high-quality brand advertisement
       6. Leave space in the bottom right corner for a logo to be added later
-      7. Not include any text in the image
+      7. CRITICAL: Absolutely NO text, typography, letters, numbers, or written elements of any kind should be included in the image
       
-      Write a detailed 3-4 sentence prompt that would help generate an excellent advertisement image.
+      Write a detailed 3-4 sentence prompt that would help generate an excellent advertisement image with NO TEXT whatsoever.
     `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo-0125",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content: "You are a professional art director who creates detailed prompts for generating brand advertisement images. You understand visual design principles and brand identity."
+          content: "You are a professional art director and marketing and branding expert who creates detailed prompts for generating brand advertisement images. You understand visual design principles and brand identity. You NEVER include text in images as you know AI models struggle with text rendering."
         },
         {
           role: "user",
@@ -229,7 +55,7 @@ export async function generatePromptForImage(brandKit: any) {
     });
 
     console.log('Generated image prompt:', response.choices[0].message.content);
-    return response.choices[0].message.content;
+    return response.choices[0].message.content + "\n\nCRITICAL: The image MUST NOT contain ANY text, typography, letters, numbers, or written elements whatsoever.";
   } catch (error) {
     console.error('Error generating image prompt:', error);
     throw error;
@@ -266,7 +92,7 @@ export async function generateCaption(brandKit: any, imageUrl: string) {
     console.log('Generated prompt:', prompt);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo-0125",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -431,8 +257,9 @@ export async function generateImageWithGPTImage1(
     if (brandKit) {
       // We'll always leave space for the logo in the bottom right
       const logoInstruction = '\nIMPORTANT: Leave space in the bottom right corner for the brand logo to be added later.';
+      const textProhibition = '\nCRITICAL INSTRUCTION: The image MUST NOT contain ANY text, typography, letters, numbers, or written elements whatsoever. DO NOT attempt to include any words, phrases, slogans, or text of any kind in the image.';
       
-      prompt = `Generate a high-quality brand advertisement image for ${brandKit.name}.
+      prompt = `Generate a high-quality brand advertisement image explaining ${brandKit.name}.
 
 Brand Identity:
 - Name: ${brandKit.name} 
@@ -446,12 +273,21 @@ Advertisement Context:
 - Create a visually striking promotional image that represents the brand's values and aesthetic
 - Incorporate the brand's color scheme (${brandKit.primary_color} and ${brandKit.secondary_color}) tastefully
 - Design should reflect the brand's personality (${brandKit.brand_tone})
+- Make sure advertisement explains what brand does and follows modern trends and it should not be traditional and same boring common post we are used to see. 
+- Make advertisement fun and engaging and interesting.
 - Image should be well-composed with professional-quality lighting and composition
 - Should look like a polished advertisement created by a professional designer, not AI-generated
 - Create a clean, impactful visual that effectively communicates the brand message
+- The image should be a high-quality advertisement that will be used on social media platforms
 ${logoInstruction}
+${textProhibition}
 
-DO NOT include text in the image unless specifically requested.`;
+The final image should feel like premium content from a leading Instagram creator rather than traditional advertising.
+CRITICAL: DO NOT include ANY text, typography, letters, numbers, or written elements whatsoever in the image. NO WORDS, NO TEXT, NO LETTERS AT ALL - not even the brand name.
+`;
+    } else {
+      // Add text prohibition to any caption
+      prompt = `${caption}\n\nCRITICAL INSTRUCTION: The image MUST NOT contain ANY text, typography, letters, numbers, or written elements whatsoever. DO NOT attempt to include any words, phrases, slogans, or text of any kind in the image.`;
     }
     console.log('Generating image with prompt:', prompt, 'n:', n, 'size:', size, 'quality:', quality);
     
@@ -517,9 +353,13 @@ export async function generateImageWithLogoEdit(
   try {
     console.log('Generating image with logo edit workflow for brand:', brandKit.name);
     
+    // Add text prohibition to caption
+    const textProhibition = '\nCRITICAL INSTRUCTION: The image MUST NOT contain ANY text, typography, letters, numbers, or written elements whatsoever.';
+    const captionWithProhibition = `${caption}${textProhibition}`;
+    
     // First generate base image
     const baseImageResponse = await generateImageWithGPTImage1(
-      caption, 
+      captionWithProhibition, 
       brandKit, 
       1, 
       size,
@@ -626,17 +466,46 @@ export async function generateBrandAdvertisement(
     let imagePrompt;
     if (userPrompt) {
       // If user provided a prompt, use it with brand context
-      imagePrompt = `Create a professional advertisement for ${brandKit.name} that features: ${userPrompt}. 
-      Incorporate the brand's colors (${brandKit.primary_color} and ${brandKit.secondary_color}) 
-      and match the brand tone (${brandKit.brand_tone}). 
+      const textProhibition = '\nCRITICAL INSTRUCTION: The image MUST NOT contain ANY text, typography, letters, numbers, or written elements whatsoever. DO NOT attempt to include any words, phrases, slogans, or text of any kind in the image.';
+      
+      imagePrompt = `Create a highly engaging Instagram post for ${brandKit.name} that will attract new followers and increase engagement. The image should feature: ${userPrompt}.
+
+      Brand Elements:
+      - Incorporate the brand's signature colors (${brandKit.primary_color} and ${brandKit.secondary_color}) in a way that feels native to Instagram
+      - Refer to this for Description: ${brandKit.description}
+      - Match the brand's tone (${brandKit.brand_tone}) while ensuring the content feels authentic and relatable
+      - Design with Instagram's visual language in mind (high contrast, vibrant yet cohesive colors, eye-catching composition)
+      
+      Instagram Optimization:
+      - Create a scroll-stopping visual that stands out in a crowded feed
+      - Design with mobile-first viewing in mind (clear focal point that works in small formats)
+      - Include subtle visual elements that encourage engagement (details that prompt questions or invite closer inspection)
+      - Create a scene that feels aspirational yet attainable to inspire sharing and saving
+      - Balance professional quality with authentic storytelling that builds community connection
+      
+      Technical Requirements:
+      - Optimize composition for Instagram's square or 4:5 vertical format
+      - Ensure the visual remains impactful when viewed as a thumbnail
+      - Leave space in the bottom right corner for the brand logo
+      - Create depth and dimension that works well with Instagram's visual environment
+      ${textProhibition}
+      
+      The final image should feel like premium content from a leading Instagram creator rather than traditional advertising. 
+      CRITICAL: DO NOT include ANY text, typography, letters, numbers, or written elements whatsoever in the image. NO WORDS, NO TEXT, NO LETTERS AT ALL - not even the brand name.
       Leave space in the bottom right corner for a logo.`;
     } else {
       // Generate AI-crafted prompt based on brand details
       imagePrompt = await generatePromptForImage(brandKit);
       
-      // Ensure instruction is for bottom right logo placement
-      if (imagePrompt && !imagePrompt.toLowerCase().includes('bottom right')) {
-        imagePrompt += '\nLeave space in the bottom right corner for a logo.';
+      // Ensure instruction is for bottom right logo placement and no text
+      if (imagePrompt) {
+        if (!imagePrompt.toLowerCase().includes('bottom right')) {
+          imagePrompt += '\nLeave space in the bottom right corner for a logo.';
+        }
+        
+        if (!imagePrompt.toLowerCase().includes('no text')) {
+          imagePrompt += '\nCRITICAL: The image MUST NOT contain ANY text, typography, letters, numbers, or written elements whatsoever.';
+        }
       }
     }
     
@@ -646,7 +515,7 @@ export async function generateBrandAdvertisement(
     console.log('Generating image with quality:', 'low');
     const imageResponse = await openai.images.generate({
       model: "gpt-image-1",
-      prompt: imagePrompt || '',
+      prompt: (imagePrompt || '') + '\n\nCRITICAL: DO NOT include ANY text, typography, letters, numbers, or written elements whatsoever in the image.',
       n: 1,
       size,
       quality: 'low'
