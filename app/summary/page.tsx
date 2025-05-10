@@ -123,22 +123,27 @@ export default function SummaryPage() {
     setTimeout(() => setShowSuccessBanner(false), 5000)
   }
 
-  const handlePublish = async () => {
-    if (selectedPosts.length === 0) return
-
-    setIsExporting(true)
-
-    // Simulate publish process
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-
-    setIsExporting(false)
-    setSuccessMessage(`Successfully published ${selectedPosts.length} posts to Instagram`)
-    setShowSuccessBanner(true)
-
-    // Auto-hide success banner after 5 seconds
-    setTimeout(() => {
-      setShowSuccessBanner(false)
-    }, 5000)
+  const handlePublishToInstagram = async () => {
+    if (selectedPosts.length === 0) return;
+    setIsExporting(true);
+    try {
+      const selected = posts.filter((post) => selectedPosts.includes(post.id));
+      let successCount = 0;
+      for (const post of selected) {
+        const res = await fetch('/api/publish-instagram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_url: post.image_url, caption: post.caption })
+        });
+        if (res.ok) successCount++;
+      }
+      setSuccessMessage(`Successfully published ${successCount} of ${selected.length} posts to Instagram`);
+    } catch (e) {
+      setSuccessMessage('Failed to publish to Instagram');
+    }
+    setIsExporting(false);
+    setShowSuccessBanner(true);
+    setTimeout(() => setShowSuccessBanner(false), 5000);
   }
 
   // Fetch single post for view/edit
@@ -257,7 +262,7 @@ export default function SummaryPage() {
           </TooltipProvider>
 
           <Button
-            onClick={handlePublish}
+            onClick={handlePublishToInstagram}
             disabled={selectedPosts.length === 0 || isExporting}
             className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
           >
