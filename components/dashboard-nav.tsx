@@ -247,6 +247,16 @@ export function DashboardNav() {
                     </Link>
                   </li>
                   <li>
+                    <Link
+                      href="/analytics"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={() => setOpen(false)}
+                    >
+                      <Package className="h-5 w-5" />
+                      Analytics
+                    </Link>
+                  </li>
+                  <li>
                     <form
                       action={async () => {
                         await fetch("/api/auth/signout", { method: "POST" })
@@ -320,6 +330,20 @@ export function DashboardNav() {
                     </Link>
                   </TooltipTrigger>
                   <TooltipContent side="right">Configure app settings</TooltipContent>
+                </Tooltip>
+              </li>
+              <li>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/analytics"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <Package className="h-5 w-5" />
+                      <span>Analytics</span>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">View analytics dashboard</TooltipContent>
                 </Tooltip>
               </li>
             </ul>

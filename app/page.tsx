@@ -215,7 +215,9 @@ export default async function LandingPage() {
                   </li>
                 </ul>
                 <div className="pt-4">
-                  <Button className="bg-purple-600 hover:bg-purple-700">Try Content Generation</Button>
+                  <Link href="/dashboard/image-posts">
+                    <Button className="bg-purple-600 hover:bg-purple-700">Try Content Generation</Button>
+                  </Link>
                 </div>
               </div>
               <div className="overflow-hidden rounded-xl border shadow-lg">
@@ -260,7 +262,9 @@ export default async function LandingPage() {
                   </li>
                 </ul>
                 <div className="pt-4">
+                <Link href="scheduler">
                   <Button className="bg-purple-600 hover:bg-purple-700">See Scheduling Demo</Button>
+                  </Link>
                 </div>
               </div>
             </div>
