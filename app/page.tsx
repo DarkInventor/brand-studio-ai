@@ -5025,7 +5025,7 @@ export default async function LandingPage() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white text-white hover:bg-purple-700 transition-all"
+                  className="border-white/40 border  text-white hover:bg-purple-700 transition-all bg-purple-600"
                 >
                   Schedule a Demo
                 </Button>
