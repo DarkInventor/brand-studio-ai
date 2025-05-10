@@ -276,8 +276,8 @@ export function DashboardNav() {
       </div>
 
       {/* Desktop Navigation */}
-      <TooltipProvider delayDuration={300}>
-        <div className="hidden h-screen w-64 flex-col border-r bg-card md:flex">
+      <TooltipProvider delayDuration={300} >
+        <div className="hidden h-screen w-64 flex-col border-r bg-card md:flex ">
           <div className="flex h-16 items-center border-b px-6 py-8">
             <BrandLogo size="sm" href="/" className="font-semibold" />
           </div>

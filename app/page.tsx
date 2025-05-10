@@ -177,7 +177,7 @@ export default async function LandingPage() {
         <PressSection />
        
 
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-white">
+        <section className="max-w-7xl mx-auto w-full py-12 md:py-24 lg:py-32 bg-white ">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
               <div className="space-y-2">
@@ -223,8 +223,8 @@ export default async function LandingPage() {
                   src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-post-lUIx1DtfNNcsqQhFi2u6fkfmr74DW0.png"
                   alt="AI-Generated Instagram Post"
                   width={600}
-                  height={400}
-                  className="object-cover"
+                  height={337.5}
+                  className="object-cover w-full"
                 />
               </div>
             </div>
@@ -303,7 +303,7 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-white to-purple-50">
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-white to-purple-50 max-w-7xl mx-auto">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
               <div className="space-y-2">
