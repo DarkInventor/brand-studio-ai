@@ -25,9 +25,9 @@ export default async function LandingPage() {
                 AI
               </span>
             </div>
-            <div className="font-bold text-xl flex items-center">
+            <div className="font-bold text-sm flex items-center lg:text-xl md:text:xl">
               BrandStudioAI
-              <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-md font-medium">
+              <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-md font-medium hidden lg:block md:block">
                 BETA
               </span>
             </div>
@@ -71,25 +71,11 @@ export default async function LandingPage() {
               )}
             </div>
           </div>
-          <button className="flex items-center justify-center rounded-md p-2 text-foreground md:hidden">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-6 w-6"
-            >
-              <line x1="4" x2="20" y1="12" y2="12" />
-              <line x1="4" x2="20" y1="6" y2="6" />
-              <line x1="4" x2="20" y1="18" y2="18" />
-            </svg>
-            <span className="sr-only">Toggle menu</span>
-          </button>
+          <Link href="/dashboard"  className="md:hidden">
+          <Button size="sm" className="md:hidden">
+            Get Started           
+          </Button>
+          </Link>
         </div>
       </header>
       <main className="flex-1 overflow-hidden">
