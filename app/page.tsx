@@ -15,7 +15,7 @@ export default async function LandingPage() {
   const isLoggedIn = !!session
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col overflow-hidden">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex gap-2 items-center">
@@ -92,8 +92,8 @@ export default async function LandingPage() {
           </button>
         </div>
       </header>
-      <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-white to-purple-50">
+      <main className="flex-1 overflow-hidden">
+        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-32 bg-gradient-to-b from-white to-purple-50">
           <div className="container px-4 md:px-6">
             <div className="grid gap-6 lg:grid-cols-[1fr_600px] lg:gap-12 xl:grid-cols-[1fr_700px]">
               <div className="flex flex-col justify-center space-y-4">
@@ -130,7 +130,7 @@ export default async function LandingPage() {
                       </Button>
                     </Link>
                   )}
-                  <Button size="lg" variant="outline" className="border-purple-200 hover:bg-purple-100 hover:text-purple-700 transition-all">
+                  <Button size="lg" variant="outline" className="border-purple-200 hover:bg-purple-100 hover:text-purple-700 transition-all w-[150px]">
                     <Instagram className="mr-2 h-4 w-4" /> Watch Demo
                   </Button>
                 </div>
@@ -155,7 +155,7 @@ export default async function LandingPage() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-center">
+              {/* <div className="flex items-center justify-center">
                 <div className="relative aspect-video overflow-hidden rounded-xl border bg-background shadow-xl transition-all hover:shadow-2xl">
                   <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/5 to-blue-500/5 z-10"></div>
                   <Image
@@ -165,8 +165,26 @@ export default async function LandingPage() {
                     height={400}
                     className="object-cover"
                   />
+                
                 </div>
-              </div>
+               
+              </div> */}
+              <div className="flex items-center justify-center overflow-hidden">
+      {/* Changed aspect-video to aspect-[9/16] for a tall portrait orientation */}
+      <div className="relative aspect-[9/7.5] overflow-hidden rounded-xl border bg-background shadow-xl transition-all hover:shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/5 to-blue-500/5 z-10"></div>
+
+        {/* Removed the extra nested div that was causing layout issues */}
+        <video
+          src="https://pub-a49ce427d0254ca983d7c77bb50b7846.r2.dev/brand%20studio.mp4"
+          className="w-full h-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      </div>
+    </div>
             </div>
           </div>
         </section>
