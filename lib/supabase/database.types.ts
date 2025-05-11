@@ -1,3 +1,154 @@
+// export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+// export interface Database {
+//   public: {
+//     Tables: {
+//       profiles: {
+//         Row: {
+//           id: string
+//           full_name: string | null
+//           avatar_url: string | null
+//           created_at: string
+//           updated_at: string
+//           instagram_access_token: string | null
+//         }
+//         Insert: {
+//           id: string
+//           full_name?: string | null
+//           avatar_url?: string | null
+//           created_at?: string
+//           updated_at?: string
+//           instagram_access_token?: string | null
+//         }
+//         Update: {
+//           id?: string
+//           full_name?: string | null
+//           avatar_url?: string | null
+//           created_at?: string
+//           updated_at?: string
+//           instagram_access_token?: string | null
+//         }
+//       }
+//       brand_kits: {
+//         Row: {
+//           id: string
+//           user_id: string
+//           name: string
+//           description: string | null
+//           primary_color: string
+//           secondary_color: string
+//           brand_tone: string | null
+//           logo_url: string | null
+//           created_at: string
+//           updated_at: string
+//         }
+//         Insert: {
+//           id?: string
+//           user_id: string
+//           name: string
+//           description?: string | null
+//           primary_color: string
+//           secondary_color: string
+//           brand_tone?: string | null
+//           logo_url?: string | null
+//           created_at?: string
+//           updated_at?: string
+//         }
+//         Update: {
+//           id?: string
+//           user_id?: string
+//           name?: string
+//           description?: string | null
+//           primary_color?: string
+//           secondary_color?: string
+//           brand_tone?: string | null
+//           logo_url?: string | null
+//           created_at?: string
+//           updated_at?: string
+//         }
+//       }
+//       posts: {
+//         Row: {
+//           id: string
+//           user_id: string
+//           brand_kit_id: string
+//           caption: string
+//           image_url: string
+//           status: string
+//           scheduled_for: string | null
+//           created_at: string
+//           updated_at: string
+//         }
+//         Insert: {
+//           id?: string
+//           user_id: string
+//           brand_kit_id: string
+//           caption: string
+//           image_url: string
+//           status?: string
+//           scheduled_for?: string | null
+//           created_at?: string
+//           updated_at?: string
+//         }
+//         Update: {
+//           id?: string
+//           user_id?: string
+//           brand_kit_id?: string
+//           caption?: string
+//           image_url?: string
+//           status?: string
+//           scheduled_for?: string | null
+//           created_at?: string
+//           updated_at?: string
+//         }
+//       },
+//       scheduled_posts: {
+//         Row: {
+//           id: string
+//           post_id: string
+//           brand_kit_id: string
+//           date: string
+//           time: string
+//           created_at: string
+//           updated_at: string
+//         }
+//         Insert: {
+//           id?: string
+//           post_id: string
+//           brand_kit_id: string
+//           date: string
+//           time: string
+//           created_at?: string
+//           updated_at?: string
+//         }
+//         Update: {
+//           id?: string
+//           post_id?: string
+//           brand_kit_id?: string
+//           date?: string
+//           time?: string
+//           created_at?: string
+//           updated_at?: string
+//         }
+//       }
+//     }
+//     Views: {
+//       [_ in never]: never
+//     }
+//     Functions: {
+//       [_ in never]: never
+//     }
+//     Enums: {
+//       [_ in never]: never
+//     }
+//   }
+// }
+
+// export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+// export type BrandKit = Database["public"]["Tables"]["brand_kits"]["Row"]
+// export type Post = Database["public"]["Tables"]["posts"]["Row"]
+
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export interface Database {
@@ -130,6 +281,53 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+      },
+      analytics_feedback: {
+        Row: {
+          id: string
+          user_id: string
+          time_range: string
+          brand_consistency_score: number
+          caption_quality_score: number
+          content_suggestions: Json
+          brand_consistency_feedback: string
+          caption_quality_feedback: string
+          overall_strategy: string
+          brand_kit_optimizations: Json
+          post_count: number | null
+          brand_kit_count: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          time_range: string
+          brand_consistency_score?: number
+          caption_quality_score?: number
+          content_suggestions?: Json
+          brand_consistency_feedback?: string
+          caption_quality_feedback?: string
+          overall_strategy?: string
+          brand_kit_optimizations?: Json
+          post_count?: number | null
+          brand_kit_count?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          time_range?: string
+          brand_consistency_score?: number
+          caption_quality_score?: number
+          content_suggestions?: Json
+          brand_consistency_feedback?: string
+          caption_quality_feedback?: string
+          overall_strategy?: string
+          brand_kit_optimizations?: Json
+          post_count?: number | null
+          brand_kit_count?: number | null
+          created_at?: string
+        }
       }
     }
     Views: {
@@ -147,3 +345,5 @@ export interface Database {
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
 export type BrandKit = Database["public"]["Tables"]["brand_kits"]["Row"]
 export type Post = Database["public"]["Tables"]["posts"]["Row"]
+export type ScheduledPost = Database["public"]["Tables"]["scheduled_posts"]["Row"]
+export type AnalyticsFeedback = Database["public"]["Tables"]["analytics_feedback"]["Row"]
