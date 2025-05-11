@@ -550,8 +550,8 @@ export default function ImagePosts() {
                   </SelectContent>
                 </Select>
               ) : (
-                <Link href="/brand-kit">
-                  <Button variant="outline" className="w-full sm:w-auto">
+                <Link href="/brand-kit" className=" ml-0 lg:ml-10 md:ml-10">
+                  <Button variant="outline" className="w-full sm:w-auto ml-0 lg:ml-10 md:ml-10">
                     Create Brand Kit
                   </Button>
                 </Link>
