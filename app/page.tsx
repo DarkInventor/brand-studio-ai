@@ -7,6 +7,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { UserProfileDropdown } from "@/components/user-profile-dropdown"
 import { PressSection } from "@/components/ui/press-section"
 import { PricingSection } from "@/components/pricing-section"
+import PricingPage from "./pricing/page"
 
 export default async function LandingPage() {
   const supabase = createServerClient()
@@ -308,7 +309,7 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <PricingSection />
+        <PricingPage />
 
         <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-white to-purple-50 max-w-7xl mx-auto">
           <div className="container px-4 md:px-6">

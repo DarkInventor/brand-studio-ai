@@ -12,7 +12,7 @@ export async function signUp(formData: FormData) {
   const password = formData.get("password") as string
   const fullName = formData.get("fullName") as string
 
-  const { error } = await supabase.auth.signUp({
+  const { error, data } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -27,6 +27,17 @@ export async function signUp(formData: FormData) {
     return { error: error.message }
   }
 
+  // Ensure profile fields are set after signup
+  if (data?.user) {
+    const { id } = data.user
+    // Always upsert the profile to ensure it exists
+    await supabase.from("profiles").upsert({
+      id,
+      email: email ?? null,
+      full_name: fullName ?? null,
+    })
+  }
+
   return { success: "Check your email to confirm your account!" }
 }
 
@@ -37,7 +48,7 @@ export async function signIn(formData: FormData) {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -45,6 +56,20 @@ export async function signIn(formData: FormData) {
     if (error) {
       console.error("Sign-in error:", error.message)
       return { error: error.message }
+    }
+
+    // Ensure profile fields are set after login
+    if (data?.user) {
+      const { id, user_metadata } = data.user
+      const { data: profile, error: profileError } = await supabase.from("profiles").select("*").eq("id", id).single()
+      if (!profileError && profile) {
+        const updates: any = {}
+        if (!profile.email && email) updates.email = email
+        if (!profile.full_name && user_metadata?.full_name) updates.full_name = user_metadata.full_name
+        if (Object.keys(updates).length > 0) {
+          await supabase.from("profiles").update(updates).eq("id", id)
+        }
+      }
     }
 
     revalidatePath("/")
@@ -66,9 +91,9 @@ export async function getCurrentUser() {
   try {
     const supabase = createActionClient()
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
     if (!user) {
       return null

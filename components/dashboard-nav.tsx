@@ -248,7 +248,7 @@ export function DashboardNav() {
                   </li>
                   <li>
                     <Link
-                      href="/settings"
+                      href="/account"
                       className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       onClick={() => setOpen(false)}
                     >
@@ -336,7 +336,7 @@ export function DashboardNav() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link
-                      href="/settings"
+                      href="/account"
                       className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <Settings className="h-5 w-5" />

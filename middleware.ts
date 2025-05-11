@@ -8,7 +8,7 @@ export async function middleware(req: NextRequest) {
   // Use environment variables with fallback to hardcoded values
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://iihvapwxfouqwffevnts.supabase.co"
   const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpaHZhcHd4Zm91cXdmZmV2bnRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTU0NzAsImV4cCI6MjA2MjE5MTQ3MH0.1CpKLVRDOLo-tLV7W0n3MlTF9tTGwat8kyFiXHH5hwI"
 
   const supabase = createMiddlewareClient({
@@ -26,7 +26,9 @@ export async function middleware(req: NextRequest) {
   const isAuthenticated = !!session
 
   // Protected routes that require authentication
-  const protectedRoutes = ["/dashboard", "/brand-kit", "/scheduler", "/summary"]
+  const protectedRoutes = ["/dashboard", "/brand-kit", "/scheduler", "/summary", "/payment/success",
+    "/api/create-checkout-session",
+    "/api/create-portal-session",]
 
   // Auth routes that should redirect to dashboard if already authenticated
   const authRoutes = ["/login", "/signup"]
@@ -36,6 +38,7 @@ export async function middleware(req: NextRequest) {
   // If the user is trying to access a protected route without being authenticated
   if (protectedRoutes.some((route) => path.startsWith(route)) && !isAuthenticated) {
     const redirectUrl = new URL("/login", req.url)
+    redirectUrl.searchParams.set("callbackUrl", req.nextUrl.pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
