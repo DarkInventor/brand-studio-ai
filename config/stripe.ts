@@ -3,8 +3,8 @@ export const STRIPE_PRODUCTS = {
 }
 
 export const STRIPE_PRICES = {
-  STARTER_MONTHLY: "price_1RNg39APpzV89AeshOFC5MY7", // Replace with your actual price ID when available
-  PRO_MONTHLY: "price_1RNgHuAPpzV89AesMazNBAFN",
+  STARTER_MONTHLY: "price_1RNh9sAPpzV89AesvB3aU49A", // Replace with your actual price ID when available
+  PRO_MONTHLY: "price_1RNhB5APpzV89AeszSD55wm2",
   BUSINESS_MONTHLY: "price_business", // Replace with your actual price ID when available
 }
 
