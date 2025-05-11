@@ -226,6 +226,16 @@ export function DashboardNav() {
                   <h3 className="text-xs font-medium uppercase text-muted-foreground tracking-wider">Account</h3>
                 </div>
                 <ul className="grid gap-1">
+                <li>
+                    <Link
+                      href="/analytics"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={() => setOpen(false)}
+                    >
+                      <Package className="h-5 w-5" />
+                      Analytics
+                    </Link>
+                  </li>
                   <li>
                     <Link
                       href="/profile"
@@ -245,17 +255,7 @@ export function DashboardNav() {
                       <Settings className="h-5 w-5" />
                       Settings
                     </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/analytics"
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      onClick={() => setOpen(false)}
-                    >
-                      <Package className="h-5 w-5" />
-                      Analytics
-                    </Link>
-                  </li>
+                  </li>                 
                   <li>
                     <form
                       action={async () => {
@@ -304,6 +304,20 @@ export function DashboardNav() {
               <h3 className="text-xs font-medium uppercase text-muted-foreground tracking-wider">Account</h3>
             </div>
             <ul className="grid gap-1">
+            <li>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/analytics"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <Package className="h-5 w-5" />
+                      <span>Analytics</span>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">View analytics dashboard</TooltipContent>
+                </Tooltip>
+              </li>
               <li>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -332,20 +346,7 @@ export function DashboardNav() {
                   <TooltipContent side="right">Configure app settings</TooltipContent>
                 </Tooltip>
               </li>
-              <li>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href="/analytics"
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Package className="h-5 w-5" />
-                      <span>Analytics</span>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">View analytics dashboard</TooltipContent>
-                </Tooltip>
-              </li>
+            
             </ul>
           </nav>
           <div className="border-t p-4">
