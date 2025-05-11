@@ -9,6 +9,7 @@ Brand Studio is an AI-powered platform for generating, managing, and previewing 
 - **AI-Powered Post Generation:** For each brand kit, users can generate Instagram posts. The system uses OpenAI to create both a caption and an image that matches the brand's style.
 - **Image Handling:** Generated images are either saved as data URLs (base64) or direct URLs from OpenAI, and are previewable in the dashboard and summary pages.
 - **Post Management:** Users can view, edit, and schedule posts. Captions can be regenerated and posts can be updated or deleted.
+- **AI Analytics Dashboard:** Get AI-powered insights and recommendations for your content strategy, including brand consistency analysis, caption quality evaluation, and strategic recommendations.
 - **Authentication:** Uses Supabase Auth for user sign-up, login, and session management.
 - **Dashboard:** A modern dashboard UI to view all posts, filter by brand kit, and manage content.
 
@@ -17,7 +18,7 @@ Brand Studio is an AI-powered platform for generating, managing, and previewing 
 ## Tech Stack
 - **Frontend:** Next.js (App Router), React, TypeScript
 - **UI:** Shadcn/ui, Lucide Icons, Tailwind CSS
-- **Backend/API:** Next.js API routes, OpenAI API (for image and caption generation)
+- **Backend/API:** Next.js API routes, OpenAI API (for image and caption generation, analytics)
 - **Database & Auth:** Supabase (Postgres, Auth, Storage)
 - **Deployment:** Vercel
 
@@ -41,6 +42,12 @@ Each Instagram-ready post (image + caption) uses one image credit.
 - **Underlying cost:** Each image is generated using OpenAI's GPT-Image 1 (low quality, 1024x1024), with a base cost of about $0.011 per image.  
 - **Text (caption/prompt) costs are included and negligible.**
 
+**AI Analytics Feature:**  
+The AI Analytics Dashboard is included in Pro and Business plans. This feature uses OpenAI's GPT-4o model to analyze your content and provide strategic recommendations.
+- **Underlying cost:** Each analysis uses approximately 4,000-8,000 tokens (input + output), with a base cost of about $0.05-$0.10 per analysis.
+- **Usage limits:** Pro plans include 10 analyses per month, Business plans include unlimited analyses.
+- **Additional analyses:** $1 per analysis beyond plan limits.
+
 ---
 
 ## How it works
@@ -51,28 +58,34 @@ Each Instagram-ready post (image + caption) uses one image credit.
    - The image is saved as a data URL or direct URL in the database.
    - The caption and image URL are saved as a new post.
 4. **User can preview, edit, or schedule posts** from the dashboard.
-5. **All data is stored in Supabase** (brand kits, posts, user profiles).
+5. **User can analyze content strategy** with the AI Analytics Dashboard:
+   - The app sends post data to OpenAI for analysis.
+   - AI provides brand consistency scores, caption quality evaluation, and strategic recommendations.
+6. **All data is stored in Supabase** (brand kits, posts, user profiles).
 
 ---
 
 ## Running locally
 
 1. Clone the repo and install dependencies:
+```
 git clone https://github.com/DarkInventor/brand-studio.git
 cd brand-studio
 npm install
+```
 
-text
 2. Set up your `.env.local` with your Supabase and OpenAI credentials:
+```
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 OPENAI_API_KEY=your-openai-key
+```
 
-text
 3. Run the dev server:
+```
 npm run dev
+```
 
-text
 4. Visit [http://localhost:3000](http://localhost:3000)
 
 ---
@@ -99,6 +112,7 @@ text
 
 - The OpenAI image API may return either a direct URL or a base64-encoded image. The code handles both.
 - Supabase Storage is not used for post images (to avoid extra costs and complexity); images are previewed directly from OpenAI or as data URLs.
+- The AI Analytics feature uses OpenAI's GPT-4o model to analyze content and provide recommendations.
 - If you want to add more social platforms, extend the brand kit and post models.
 - For any issues with authentication or storage, check Supabase project settings and RLS policies.
 
@@ -106,3 +120,8 @@ text
 
 **Questions?**  
 Contact us for custom plans, enterprise needs, or support.
+```
+
+
+
+
