@@ -128,8 +128,8 @@ export function SubscriptionStatus() {
 
   const planLimits = {
     Free: 50,
-    Basic: 200,
-    Pro: 1000,
+    Basic: 500,
+    Pro: 2000,
     Enterprise: 5000,
   }
 
