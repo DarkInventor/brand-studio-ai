@@ -40,7 +40,7 @@ export default async function AccountPage() {
             </div>
           </div>
 
-          <CreditBalance />
+          {/* <CreditBalance /> */}
         </div>
       </div>
     </div>
