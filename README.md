@@ -39,14 +39,20 @@ If you exceed your plan's image quota, you can purchase extra image credits at $
 
 **How are images billed?**  
 Each Instagram-ready post (image + caption) uses one image credit.  
-- **Underlying cost:** Each image is generated using OpenAI's GPT-Image 1 (low quality, 1024x1024), with a base cost of about $0.011 per image.  
-- **Text (caption/prompt) costs are included and negligible.**
+- **Cost per image:** $0.011 per image (low quality, 1024x1024)
 
-**AI Analytics Feature:**  
-The AI Analytics Dashboard is included in Pro and Business plans. This feature uses OpenAI's GPT-4o model to analyze your content and provide strategic recommendations.
-- **Underlying cost:** Each analysis uses approximately 4,000-8,000 tokens (input + output), with a base cost of about $0.05-$0.10 per analysis.
-- **Usage limits:** Pro plans include 10 analyses per month, Business plans include unlimited analyses.
-- **Additional analyses:** $1 per analysis beyond plan limits.
+**AI Analytics Feature Costs:**  
+- **Cost per analysis:** $1.00 per content analysis
+- **Pro plan:** Includes 10 analyses per month ($10 value)
+- **Business plan:** Includes 50 analyses per month ($50 value)
+- **Additional analyses:** $1.00 per analysis beyond plan limits
+
+**What you get with each AI analysis:**
+- Brand consistency score and detailed feedback
+- Caption quality evaluation with actionable recommendations
+- Content improvement suggestions (3-5 specific recommendations)
+- Overall content strategy recommendation
+- Analysis of post distribution across your brand kits
 
 ---
 
@@ -59,8 +65,10 @@ The AI Analytics Dashboard is included in Pro and Business plans. This feature u
    - The caption and image URL are saved as a new post.
 4. **User can preview, edit, or schedule posts** from the dashboard.
 5. **User can analyze content strategy** with the AI Analytics Dashboard:
-   - The app sends post data to OpenAI for analysis.
-   - AI provides brand consistency scores, caption quality evaluation, and strategic recommendations.
+   - Select a time range (7 days, 30 days, 90 days, or all time)
+   - Click "Analyze Content" to generate AI feedback
+   - Review scores, recommendations, and strategic insights
+   - Refresh analysis as needed (counts as a new analysis)
 6. **All data is stored in Supabase** (brand kits, posts, user profiles).
 
 ---
@@ -120,8 +128,5 @@ npm run dev
 
 **Questions?**  
 Contact us for custom plans, enterprise needs, or support.
-```
-
-
 
 
