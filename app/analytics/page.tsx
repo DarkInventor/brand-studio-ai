@@ -81,34 +81,34 @@ export default function AnalyticsPage() {
     name: kit.name,
     count: validPosts.filter((p) => p.brand_kit_id === kit.id).length,
   }))
-  const postsByMonthRaw = validPosts.reduce(
+  // Aggregate by day
+  const postsByDayRaw = validPosts.reduce(
     (acc, post) => {
-      const month = new Date(post.updated_at).toLocaleString("default", { month: "short", year: "numeric" })
-      acc[month] = (acc[month] || 0) + 1
+      const day = new Date(post.updated_at).toISOString().slice(0, 10) // YYYY-MM-DD
+      acc[day] = (acc[day] || 0) + 1
       return acc
     },
     {} as Record<string, number>,
   )
-
-  // Fill missing months for continuous timeline
-  function getMonthRange(start: Date, end: Date) {
-    const months = []
-    const date = new Date(start.getFullYear(), start.getMonth(), 1)
+  // Fill missing days for continuous timeline
+  function getDayRange(start: Date, end: Date) {
+    const days = []
+    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate())
     while (date <= end) {
-      months.push(date.toLocaleString("default", { month: "short", year: "numeric" }))
-      date.setMonth(date.getMonth() + 1)
+      days.push(date.toISOString().slice(0, 10))
+      date.setDate(date.getDate() + 1)
     }
-    return months
+    return days
   }
-  let postsByMonth = postsByMonthRaw
-  let chartMonths: string[] = []
+  let postsByDay = postsByDayRaw
+  let chartDays: string[] = []
   if (validPosts.length > 0) {
     const sortedDates = validPosts.map(p => new Date(p.updated_at)).sort((a, b) => a.getTime() - b.getTime())
-    const minDate = new Date(sortedDates[0].getFullYear(), sortedDates[0].getMonth(), 1)
-    const maxDate = new Date(sortedDates[sortedDates.length - 1].getFullYear(), sortedDates[sortedDates.length - 1].getMonth(), 1)
-    chartMonths = getMonthRange(minDate, maxDate)
-    postsByMonth = chartMonths.reduce((acc, month) => {
-      acc[month] = postsByMonthRaw[month] || 0
+    const minDate = new Date(sortedDates[0].getFullYear(), sortedDates[0].getMonth(), sortedDates[0].getDate())
+    const maxDate = new Date(sortedDates[sortedDates.length - 1].getFullYear(), sortedDates[sortedDates.length - 1].getMonth(), sortedDates[sortedDates.length - 1].getDate())
+    chartDays = getDayRange(minDate, maxDate)
+    postsByDay = chartDays.reduce((acc, day) => {
+      acc[day] = postsByDayRaw[day] || 0
       return acc
     }, {} as Record<string, number>)
   }
@@ -266,28 +266,30 @@ export default function AnalyticsPage() {
                   Posts Over Time
                 </CardTitle>
                 <Badge variant="outline" className="text-xs font-normal">
-                  Monthly
+                  Daily
                 </Badge>
               </div>
             </CardHeader>
             <CardContent>
-              {Object.keys(postsByMonth).length === 0 ? (
+              {Object.keys(postsByDay).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">No timeline data available</div>
               ) : (
                 <ChartContainer config={{}} className="h-64">
                   <BarChart
                     width={600}
                     height={250}
-                    data={chartMonths.map((month) => ({ month, count: Number(postsByMonth[month] || 0) }))}
+                    data={chartDays.map((day) => ({ day, count: Number(postsByDay[day] || 0) }))}
                     margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f3f3" />
                     <XAxis
-                      dataKey="month"
+                      dataKey="day"
                       stroke="#888"
                       fontSize={11}
                       tickLine={false}
                       axisLine={{ stroke: "#f1f1f1" }}
+                      minTickGap={8}
+                      tickFormatter={(d) => d.slice(5)} // show MM-DD
                     />
                     <YAxis
                       allowDecimals={false}
@@ -349,10 +351,10 @@ export default function AnalyticsPage() {
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Most Active Month</div>
+                <div className="text-xs text-muted-foreground">Most Active Day</div>
                 <div className="text-sm font-medium mt-1">
-                  {Object.keys(postsByMonth).length > 0
-                    ? Object.entries(postsByMonth).sort((a, b) => b[1] - a[1])[0][0]
+                  {Object.keys(postsByDay).length > 0
+                    ? Object.entries(postsByDay).sort((a, b) => b[1] - a[1])[0][0]
                     : "No data"}
                 </div>
               </div>
