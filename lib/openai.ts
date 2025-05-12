@@ -135,6 +135,9 @@ export async function generateCaption(brandKit: any, imageUrl: string) {
       7. Is between 300-400 characters for maximum impact
       
       Format the caption with line breaks for readability.
+
+
+      IMPORTANT: CAPTION MUST NOT LOOK LIKE MARKETING COPY. AVOID USING MARKETING BUZZ WORDS. KEEP THE TONE OF THE CAPTION CONSISTENT WITH THE BRAND'S TONE.
     `
 
     // Generate the caption using OpenAI
@@ -379,10 +382,9 @@ Brand Identity:
 - Secondary Brand Color: ${brandKit.secondary_color || "#FFFFFF"}
 
 Advertisement Context:
-- Advertisement Focus: ${caption}
+- Description: ${caption}
 - Incorporate the brand's color scheme 
 - Design should reflect the brand's personality
-- Try to make the image engaging, modern, and visually appealing
 `
     } else {
       // Add text prohibition to any caption
