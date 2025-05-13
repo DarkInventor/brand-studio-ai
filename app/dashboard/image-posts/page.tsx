@@ -464,7 +464,7 @@ export default function ImagePosts() {
             {posts.map((post) => (
               <Card
                 key={post.id}
-                className="group overflow-hidden border border-border/50 bg-card transition-all duration-300 hover:shadow-lg hover:border-primary/20 hover:translate-y-[-4px]"
+                className="group overflow-hidden border border-border/50 bg-card transition-all duration-300 hover:shadow-lg hover:border-primary/20 hover:translate-y-[-4px] shadow-none"
               >
                 <CardContent className="p-0 relative">
                   <div className="aspect-square relative overflow-hidden bg-muted">
