@@ -98,6 +98,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: 1.1.6
         version: 1.1.6(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@remotion/player':
+        specifier: ^4.0.301
+        version: 4.0.301(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@stripe/stripe-js':
         specifier: ^7.3.0
         version: 7.3.0
@@ -1385,6 +1388,12 @@ packages:
   '@radix-ui/rect@1.1.0':
     resolution: {integrity: sha512-A9+lCBZoaMJlVKcRBz2YByCG+Cp2t6nAnMnNba+XiWxnj6r4JUFqfsgwocMBZU9LPtdxC6wB56ySYpc7LQIoJg==}
 
+  '@remotion/player@4.0.301':
+    resolution: {integrity: sha512-hjJibbm0lBJwDSE9+r7r5RewtGg09U4FpiVPR7kYcIDXIY7RVw0hIcarGtI8M1YbQ1ZakMLnT1mhY0aAEikysA==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+
   '@smithy/abort-controller@4.0.2':
     resolution: {integrity: sha512-Sl/78VDtgqKxN2+1qduaVE140XF+Xg+TafkncspwM4jFP/LHr76ZHmIY/y3V1M0mMLNk+Je6IGbzxy23RSToMw==}
     engines: {node: '>=18.0.0'}
@@ -2608,6 +2617,12 @@ packages:
 
   redux@5.0.1:
     resolution: {integrity: sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w==}
+
+  remotion@4.0.301:
+    resolution: {integrity: sha512-kTuLEZ+JbfTY5IuViXHX//NK3JVmXuethsh4S72SO1OFNTuVEtq+A7IyzUzMqneU0T0hc/TLU+SJnG8IvmwjUA==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   replicate@1.0.1:
     resolution: {integrity: sha512-EY+rK1YR5bKHcM9pd6WyaIbv6m2aRIvHfHDh51j/LahlHTLKemTYXF6ptif2sLa+YospupAsIoxw8Ndt5nI3vg==}
@@ -4322,6 +4337,12 @@ snapshots:
 
   '@radix-ui/rect@1.1.0': {}
 
+  '@remotion/player@4.0.301(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+    dependencies:
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+      remotion: 4.0.301(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+
   '@smithy/abort-controller@4.0.2':
     dependencies:
       '@smithy/types': 4.2.0
@@ -5622,6 +5643,11 @@ snapshots:
       victory-vendor: 36.9.2
 
   redux@5.0.1: {}
+
+  remotion@4.0.301(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+    dependencies:
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
 
   replicate@1.0.1:
     optionalDependencies:

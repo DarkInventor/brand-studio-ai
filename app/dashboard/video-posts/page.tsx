@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Bean, Clock, ImageIcon, LucideFrame, Maximize2, Mic, Palette, Sparkles, Type } from "lucide-react"
@@ -12,6 +12,19 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
+import { Player } from "@remotion/player"
+import { Video } from "remotion"
+import { createClient } from "@/lib/supabase/client"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
+import { Loader2 } from "lucide-react"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+
+// Remotion composition for video editing
+const VideoComposition = ({ videoUrl }: { videoUrl: string }) => {
+  return <Video src={videoUrl} style={{ width: "100%", height: "100%" }} />
+}
 
 export default function DiscoverPage() {
   const [inputValue, setInputValue] = useState("")
@@ -20,76 +33,247 @@ export default function DiscoverPage() {
   const [selectedEffect, setSelectedEffect] = useState("None")
   const [selectedQuality, setSelectedQuality] = useState("360p")
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9")
+  const [negativePrompt, setNegativePrompt] = useState("")
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [showTimeline, setShowTimeline] = useState(false)
+  const [brandKits, setBrandKits] = useState<any[]>([])
+  const [selectedBrandKit, setSelectedBrandKit] = useState<string>("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [videoPosts, setVideoPosts] = useState<any[]>([])
+  const [editingVideo, setEditingVideo] = useState<any | null>(null)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imageBase64, setImageBase64] = useState<string | null>(null)
+
+  // Map duration string to number
+  const durationMap: Record<string, number> = {
+    "5 sec": 5,
+    "8 sec": 8,
+    "10 sec": 10,
+    "30 sec": 30,
+  }
+
+  useEffect(() => {
+    async function fetchBrandKitsAndVideos() {
+      setIsLoading(true)
+      setError(null)
+      const supabase = createClient()
+      // Fetch brand kits
+      const { data: kitsRaw, error: kitsError } = await supabase.from("brand_kits").select("*")
+      const kits = Array.isArray(kitsRaw) ? (kitsRaw as any[]).filter((k) => k && typeof k.id === 'string') : []
+      if (kitsError) {
+        setError("Failed to load brand kits")
+        setIsLoading(false)
+        return
+      }
+      setBrandKits(kits)
+      if (kits.length > 0) {
+        setSelectedBrandKit(String(kits[0].id))
+        // Fetch video posts for the first brand kit
+        const { data: postsRaw, error: postsError } = await supabase
+          .from("posts")
+          .select("*")
+          .eq("brand_kit_id", String(kits[0].id) as any)
+          .eq("type", "video" as any)
+          .order("created_at", { ascending: false })
+        const posts = Array.isArray(postsRaw) ? (postsRaw as any[]).filter((p) => p && typeof p.id === 'string') : []
+        if (postsError) {
+          setError("Failed to load video posts")
+        } else {
+          setVideoPosts(posts)
+        }
+      }
+      setIsLoading(false)
+    }
+    fetchBrandKitsAndVideos()
+  }, [])
+
+  async function handleBrandKitChange(value: string) {
+    setSelectedBrandKit(String(value))
+    setIsLoading(true)
+    setError(null)
+    const supabase = createClient()
+    const { data: postsRaw, error: postsError } = await supabase
+      .from("posts")
+      .select("*")
+      .eq("brand_kit_id", String(value) as any)
+      .eq("type", "video" as any)
+      .order("created_at", { ascending: false })
+    const posts = Array.isArray(postsRaw) ? (postsRaw as any[]).filter((p) => p && typeof p.id === 'string') : []
+    if (postsError) {
+      setError("Failed to load video posts")
+    } else {
+      setVideoPosts(posts)
+    }
+    setIsLoading(false)
+  }
+
+  // Handle image file selection and convert to base64
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setSelectedImage(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImageBase64(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  async function handleCreateVideo() {
+    setIsGenerating(true)
+    setError(null)
+    setShowTimeline(false)
+    try {
+      const payload: Record<string, any> = {
+        style: selectedStyle,
+        effect: selectedEffect,
+        prompt: inputValue,
+        quality: selectedQuality,
+        duration: durationMap[selectedDuration] || 5,
+        motion_mode: "normal",
+        aspect_ratio: selectedAspectRatio,
+        negative_prompt: negativePrompt,
+        brand_kit_id: selectedBrandKit,
+      }
+      if (imageBase64) {
+        payload.image = imageBase64
+      }
+      const res = await fetch("/api/video-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to generate video")
+      setVideoPosts((prev) => [data.post, ...prev])
+    } catch (err: any) {
+      setError(err.message || "Unknown error")
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   return (
     <div className="bg-white text-gray-900 min-h-screen">
-      <div className="container mx-auto p-6">
-        <h1 className="text-3xl font-bold mb-6">Discover</h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Food image */}
-          <div className="relative rounded-lg overflow-hidden shadow-md">
-            <div className="absolute top-3 left-3 bg-white/80 p-1 rounded-full">
-              <Mic className="w-4 h-4" />
-            </div>
-            <img src="/placeholder.svg?key=d274p" alt="Food creation" className="w-full h-64 object-cover" />
-          </div>
-
-          {/* OpenAI image */}
-          <div className="relative rounded-lg overflow-hidden shadow-md col-span-1 row-span-1">
-            <div className="absolute top-3 left-3 text-xs font-medium bg-white/80 px-2 py-1 rounded-full">
-              Suit Swagger
-            </div>
-            <img src="/placeholder.svg?key=srnne" alt="OpenAI presentation" className="w-full h-64 object-cover" />
-          </div>
-
-          {/* Vogue Walk */}
-          <div className="relative rounded-lg overflow-hidden shadow-md row-span-2">
-            <div className="absolute top-3 left-3 flex items-center gap-1 bg-white/80 px-2 py-1 rounded-full">
-              <Mic className="w-4 h-4" />
-              <span className="text-xs font-medium">Vogue Walk</span>
-            </div>
-            <img src="/placeholder.svg?key=kx5t6" alt="Vogue Walk" className="w-full h-full object-cover" />
-            <div className="absolute bottom-0 left-0 right-0 p-3 flex justify-between items-center">
-              <Button className="bg-white/80 text-gray-800 hover:bg-white/90 rounded-lg">Go Create</Button>
-              <Button variant="ghost" size="icon" className="bg-white/80 rounded-full h-10 w-10">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-download"
-                >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" x2="12" y1="15" y2="3" />
-                </svg>
+      <div className="container mx-auto p-4">
+        <h1 className="text-3xl font-bold mb-6">Video Posts</h1>
+        {/* Brand Kit Dropdown */}
+        <div className="mb-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-1.5 rounded-full text-xs bg-white/50 backdrop-blur-sm w-full sm:w-auto min-w-[120px]">
+                <Palette className="w-4 h-4" />
+                <span className="sm:inline truncate">{Array.isArray(brandKits) && brandKits.find(bk => bk?.id === selectedBrandKit)?.name || "Brand Kit"}</span>
               </Button>
-            </div>
-          </div>
-
-          {/* Nature scene */}
-          <div className="relative rounded-lg overflow-hidden shadow-md">
-            <div className="absolute top-3 left-3 bg-white/80 p-1 rounded-full">
-              <Mic className="w-4 h-4" />
-            </div>
-            <img src="/placeholder.svg?key=pjh9b" alt="Nature scene" className="w-full h-64 object-cover" />
-          </div>
-
-          {/* Princess image */}
-          <div className="relative rounded-lg overflow-hidden shadow-md">
-            <div className="absolute top-3 left-3 bg-white/80 p-1 rounded-full">
-              <Mic className="w-4 h-4" />
-            </div>
-            <img src="/placeholder.svg?key=olb17" alt="Princess illustration" className="w-full h-64 object-cover" />
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {Array.isArray(brandKits) && brandKits.length > 0 ? (
+                brandKits.map((brandKit) => (
+                  <DropdownMenuItem key={brandKit?.id} onSelect={() => handleBrandKitChange(String(brandKit?.id))}>
+                    {brandKit?.name}
+                  </DropdownMenuItem>
+                ))
+              ) : (
+                <DropdownMenuItem asChild>
+                  <Link href="/brand-kit">Create Brand Kit</Link>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-
+        {/* Video Posts Grid */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </div>
+        ) : error ? (
+          <div className="text-red-500 text-center my-8">{error}</div>
+        ) : Array.isArray(videoPosts) && videoPosts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed p-12 text-center animate-in fade-in duration-500">
+            <div className="mb-6 rounded-full bg-primary/10 p-4">
+              <ImageIcon className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="mb-2 text-xl font-semibold">No video posts generated yet</h3>
+            <p className="mb-6 text-muted-foreground max-w-md">
+              {Array.isArray(brandKits) && brandKits.length > 0
+                ? "Click the button below to generate video posts for your brand"
+                : "Create a brand kit first to generate video posts"}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {Array.isArray(videoPosts) && videoPosts.map((post) => (
+              <Card
+                key={post?.id}
+                className="group overflow-hidden border border-border/50 bg-card transition-all duration-300 hover:shadow-lg hover:border-primary/20 hover:translate-y-[-4px]"
+              >
+                <CardContent className="p-0 relative">
+                  <div className="aspect-video relative overflow-hidden bg-muted">
+                    {post?.video_url ? (
+                      <Player
+                        component={VideoComposition}
+                        durationInFrames={30 * (post.video_duration || 5)}
+                        fps={30}
+                        compositionWidth={1280}
+                        compositionHeight={post.aspect_ratio === "9:16" ? 720 : 720}
+                        controls
+                        style={{ width: "100%", height: "100%" }}
+                        inputProps={{ videoUrl: post.video_url }}
+                        autoPlay={false}
+                        loop={false}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">No video</div>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="p-4">
+                  <div className="space-y-2 w-full">
+                    <p className="text-sm text-muted-foreground line-clamp-2">{post?.caption}</p>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs px-2 py-0">
+                        Video
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{new Date(post?.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+        {/* Remotion Timeline Editor Modal */}
+        <Dialog open={showTimeline && !!editingVideo} onOpenChange={(open) => { if (!open) { setShowTimeline(false); setEditingVideo(null) } }}>
+          <DialogContent className="max-w-4xl w-full">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-bold">Remotion Timeline Editor</h2>
+              <button
+                className="text-gray-500 hover:text-black"
+                onClick={() => { setShowTimeline(false); setEditingVideo(null) }}
+              >
+                Close
+              </button>
+            </div>
+            {editingVideo?.video_url && (
+              <Player
+                component={VideoComposition}
+                durationInFrames={30 * (editingVideo.video_duration || 5)}
+                fps={30}
+                compositionWidth={1280}
+                compositionHeight={editingVideo.aspect_ratio === "9:16" ? 720 : 720}
+                controls
+                style={{ width: "100%", height: "auto" }}
+                inputProps={{ videoUrl: editingVideo.video_url }}
+                autoPlay
+                loop
+              />
+            )}
+            <div className="mt-2 text-xs text-gray-500">(Timeline editing coming soon)</div>
+          </DialogContent>
+        </Dialog>
         {/* Creation toolbar */}
         <div className="fixed bottom-4 left-0 sm:left-[240px] right-0 bg-white/70 backdrop-blur-md border rounded-lg border-gray-200/50 p-1.5 sm:p-2 max-w-5xl mx-auto shadow-lg ">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 border-b border-gray-200/50 pb-2 sm:pb-0 ">
@@ -100,6 +284,7 @@ export default function DiscoverPage() {
                   accept="image/*"
                   className="hidden"
                   id="image-upload"
+                  onChange={handleImageChange}
                 />
                 <label htmlFor="image-upload" className="flex items-center gap-1.5 cursor-pointer">
                   <ImageIcon className="w-4 h-4" />
@@ -206,22 +391,26 @@ export default function DiscoverPage() {
                 onChange={(e) => setInputValue(e.target.value)}
               />
               <div className="text-xs text-gray-500 mt-0.5 ml-1">Text prompt for video generation</div>
-              
               <Input
                 className="pl-3 pr-3 mt-2 rounded-full border-gray-200/50 bg-white/50 backdrop-blur-sm w-full text-sm h-8"
                 placeholder="Enter negative prompt"
-                // value={inputValue}
-                // onChange={(e) => setInputValue(e.target.value)}
+                value={negativePrompt}
+                onChange={(e) => setNegativePrompt(e.target.value)}
               />
               <div className="text-xs text-gray-500 mt-0.5 ml-1">negative_prompt</div>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-1.5 gap-1.5">          
-            <Button className="bg-primary text-white rounded-full px-4 backdrop-blur-sm w-full sm:w-auto mt-1 sm:mt-0 text-sm h-8">
-              Create <span className="ml-1 text-xs bg-white/20 px-1 py-0.5 rounded">⌘ 30</span>
+            <Button
+              className="bg-primary text-white rounded-full px-4 backdrop-blur-sm w-full sm:w-auto mt-1 sm:mt-0 text-sm h-8"
+              onClick={handleCreateVideo}
+              disabled={isGenerating}
+            >
+              {isGenerating ? "Generating..." : "Create"} <span className="ml-1 text-xs bg-white/20 px-1 py-0.5 rounded">⌘ 30</span>
             </Button>
           </div>
+          {error && <div className="text-red-500 text-xs mt-2">{error}</div>}
         </div>
       </div>
     </div>

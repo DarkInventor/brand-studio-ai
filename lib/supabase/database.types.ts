@@ -99,6 +99,11 @@ export interface Database {
           scheduled_for: string | null
           created_at: string
           updated_at: string
+          type: string // 'image' | 'video'
+          video_url: string | null
+          video_duration: number | null
+          aspect_ratio: string | null
+          quality: string | null
         }
         Insert: {
           id?: string
@@ -110,6 +115,11 @@ export interface Database {
           scheduled_for?: string | null
           created_at?: string
           updated_at?: string
+          type?: string
+          video_url?: string | null
+          video_duration?: number | null
+          aspect_ratio?: string | null
+          quality?: string | null
         }
         Update: {
           id?: string
@@ -121,6 +131,11 @@ export interface Database {
           scheduled_for?: string | null
           created_at?: string
           updated_at?: string
+          type?: string
+          video_url?: string | null
+          video_duration?: number | null
+          aspect_ratio?: string | null
+          quality?: string | null
         }
       }
       scheduled_posts: {
