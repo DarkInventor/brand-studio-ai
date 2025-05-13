@@ -211,7 +211,7 @@ export default function DiscoverPage() {
                 className="pl-3 pr-3 mt-2 rounded-full border-gray-200/50 bg-white/50 backdrop-blur-sm w-full text-sm h-8"
                 placeholder="Enter negative prompt"
                 // value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                // onChange={(e) => setInputValue(e.target.value)}
               />
               <div className="text-xs text-gray-500 mt-0.5 ml-1">negative_prompt</div>
             </div>

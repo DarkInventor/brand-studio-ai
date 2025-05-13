@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Loader2, RefreshCw, Calendar, Package, Edit, Trash2, ImageIcon, ArrowLeft, CreditCard } from "lucide-react"
+import { Loader2, RefreshCw, Calendar, Package, Edit, Trash2, ImageIcon, ArrowLeft, CreditCard, Palette, Type, Sparkles } from "lucide-react"
 import { generatePosts, getPosts, deletePost } from "@/lib/actions/posts"
 import { getBrandKits } from "@/lib/actions/brand-kits"
 import { createClient } from "@/lib/supabase/client"
@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ImageOptions } from "@/lib/openai"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export default function ImagePosts() {
   const router = useRouter()
@@ -244,189 +245,170 @@ export default function ImagePosts() {
         </div>
       </div>
 
-      {/* Controls Section */}
-      <div className="mb-8 rounded-xl border bg-card p-4 shadow-sm">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="brand-kit" className="text-sm font-medium">
-                Brand Kit
-              </label>
-              {brandKits.length > 0 ? (
-                <Select value={selectedBrandKit} onValueChange={handleBrandKitChange}>
-                  <SelectTrigger id="brand-kit" className="w-full sm:w-[240px]">
-                    <SelectValue placeholder="Select brand kit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {brandKits.map((brandKit) => (
-                      <SelectItem key={brandKit.id} value={brandKit.id}>
-                        {brandKit.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Link href="/brand-kit" className=" ml-0 lg:ml-10 md:ml-10">
-                  <Button variant="outline" className="w-full sm:w-auto ml-0 lg:ml-10 md:ml-10">
-                    Create Brand Kit
-                  </Button>
-                </Link>
-              )}
-            </div>
+      {/* Creative Toolbar (fixed, inspired by video-posts) */}
+      <div className="fixed bottom-0 left-0 right-0 w-full z-50 px-2 pb-2 sm:pb-4 sm:left-[130px] sm:right-0 sm:bottom-4 sm:px-0">
+        <div className="bg-white/90 backdrop-blur-md border rounded-t-lg sm:rounded-lg border-gray-200/50 p-2 max-w-5xl mx-auto shadow-lg flex flex-col gap-2 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 w-full overflow-x-auto">
+            {/* Brand Kit Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-1.5 rounded-full text-xs bg-white/50 backdrop-blur-sm w-full sm:w-auto min-w-[120px]">
+                  <Palette className="w-4 h-4" />
+                  <span className="sm:inline truncate">{brandKits.find(bk => bk.id === selectedBrandKit)?.name || "Brand Kit"}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {brandKits.length > 0 ? (
+                  brandKits.map((brandKit) => (
+                    <DropdownMenuItem key={brandKit.id} onSelect={() => handleBrandKitChange(brandKit.id)}>
+                      {brandKit.name}
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href="/brand-kit">Create Brand Kit</Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {/* Post Type Dropdown */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Post Type</label>
-              <Select value={postType} onValueChange={setPostType}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select post type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="regular">Regular Post</SelectItem>
-                  <SelectItem value="educational">Educational Post</SelectItem>
-                  <SelectItem value="personal">Personal Photo Post</SelectItem>
-                  <SelectItem value="inspirational">Inspirational Quote</SelectItem>
-                  <SelectItem value="product">Product Showcase</SelectItem>
-                  <SelectItem value="promo">Promotional Announcement</SelectItem>
-                </SelectContent>
-              </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-1.5 rounded-full text-xs bg-white/50 backdrop-blur-sm w-full sm:w-auto min-w-[120px]">
+                  <Type className="w-4 h-4" />
+                  <span className="sm:inline truncate capitalize">{postType.replace(/_/g, ' ') || "Post Type"}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => setPostType("regular")}>Regular Post</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPostType("educational")}>Educational Post</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPostType("personal")}>Personal Photo Post</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPostType("inspirational")}>Inspirational Quote</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPostType("product")}>Product Showcase</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setPostType("promo")}>Promotional Announcement</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* Style Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-1.5 rounded-full text-xs bg-white/50 backdrop-blur-sm w-full sm:w-auto min-w-[120px]">
+                  <Palette className="w-4 h-4" />
+                  <span className="sm:inline truncate">{style || "Style"}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => setStyle("Minimal")}>Minimal</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setStyle("Retro")}>Retro</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setStyle("Futuristic")}>Futuristic</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setStyle("Photorealistic")}>Photorealistic</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setStyle("Illustration")}>Illustration</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setStyle("3D")}>3D</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setStyle("Collage")}>Collage</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* Mood Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-1.5 rounded-full text-xs bg-white/50 backdrop-blur-sm w-full sm:w-auto min-w-[120px]">
+                  <Sparkles className="w-4 h-4" />
+                  <span className="sm:inline truncate">{mood || "Mood"}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => setMood("Energetic")}>Energetic</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setMood("Calm")}>Calm</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setMood("Luxurious")}>Luxurious</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setMood("Playful")}>Playful</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setMood("Bold")}>Bold</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setMood("Elegant")}>Elegant</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* Number of Posts */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <Input
+                id="num-posts"
+                type="number"
+                min="1"
+                value={numberOfAds}
+                onChange={(e) => setNumberOfAds(Number.parseInt(e.target.value))}
+                className="w-full sm:w-16 h-8 text-xs rounded-full border-gray-200/50 bg-white/50 backdrop-blur-sm px-2 focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+              {/* <span className="text-xs text-gray-500 hidden sm:inline">posts</span> */}
             </div>
-            {/* Conditionally show fields based on postType */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-              {/* Style and Mood always shown */}
-              <div>
-                <label className="text-sm font-medium">Visual Style</label>
-                <Select value={style} onValueChange={setStyle}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="e.g. Minimal, Retro, Photorealistic" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Minimal">Minimal</SelectItem>
-                    <SelectItem value="Retro">Retro</SelectItem>
-                    <SelectItem value="Futuristic">Futuristic</SelectItem>
-                    <SelectItem value="Photorealistic">Photorealistic</SelectItem>
-                    <SelectItem value="Illustration">Illustration</SelectItem>
-                    <SelectItem value="3D">3D</SelectItem>
-                    <SelectItem value="Collage">Collage</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Mood/Emotion</label>
-                <Select value={mood} onValueChange={setMood}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="e.g. Energetic, Calm, Luxurious" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Energetic">Energetic</SelectItem>
-                    <SelectItem value="Calm">Calm</SelectItem>
-                    <SelectItem value="Luxurious">Luxurious</SelectItem>
-                    <SelectItem value="Playful">Playful</SelectItem>
-                    <SelectItem value="Bold">Bold</SelectItem>
-                    <SelectItem value="Elegant">Elegant</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* Personal Photo Post: Description */}
-              {postType === "personal" && (
-                <div>
-                  <label className="text-sm font-medium">Describe your photo</label>
-                  <Input
-                    type="text"
-                    placeholder="e.g. Me at the beach, My workspace"
-                    value={photoDesc}
-                    onChange={e => setPhotoDesc(e.target.value)}
-                  />
-                </div>
-              )}
-              {/* Inspirational Quote: Quote */}
-              {postType === "inspirational" && (
-                <div>
-                  <label className="text-sm font-medium">Quote</label>
-                  <Input
-                    type="text"
-                    placeholder="e.g. The best way to get started is to quit talking and begin doing."
-                    value={quote}
-                    onChange={e => setQuote(e.target.value)}
-                  />
-                </div>
-              )}
-              {/* Product Showcase: Product */}
-              {postType === "product" && (
-                <div>
-                  <label className="text-sm font-medium">Product/Service</label>
-                  <Input
-                    type="text"
-                    placeholder="e.g. Eco-friendly Water Bottle"
-                    value={product}
-                    onChange={e => setProduct(e.target.value)}
-                  />
-                </div>
-              )}
-              {/* Promotional Announcement: Announcement */}
-              {postType === "promo" && (
-                <div>
-                  <label className="text-sm font-medium">Announcement</label>
-                  <Input
-                    type="text"
-                    placeholder="e.g. 20% off this weekend only!"
-                    value={announcement}
-                    onChange={e => setAnnouncement(e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
+            {/* Conditional Inputs for postType */}
+            {postType === "personal" && (
+              <Input
+                type="text"
+                placeholder="Describe your photo"
+                value={photoDesc}
+                onChange={e => setPhotoDesc(e.target.value)}
+                className="h-9 text-xs rounded-full border-gray-200/50 bg-white/50 backdrop-blur-sm px-2 w-full sm:w-auto min-w-[160px] focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            )}
+            {postType === "inspirational" && (
+              <Input
+                type="text"
+                placeholder="Quote"
+                value={quote}
+                onChange={e => setQuote(e.target.value)}
+                className="h-8 text-xs rounded-full border-gray-200/50 bg-white/50 backdrop-blur-sm px-2 w-full sm:w-auto min-w-[160px] focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            )}
+            {postType === "product" && (
+              <Input
+                type="text"
+                placeholder="Product/Service"
+                value={product}
+                onChange={e => setProduct(e.target.value)}
+                className="h-8 text-xs rounded-full border-gray-200/50 bg-white/50 backdrop-blur-sm px-2 w-full sm:w-auto min-w-[160px] focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            )}
+            {postType === "promo" && (
+              <Input
+                type="text"
+                placeholder="Announcement"
+                value={announcement}
+                onChange={e => setAnnouncement(e.target.value)}
+                className="h-8 text-xs rounded-full border-gray-200/50 bg-white/50 backdrop-blur-sm px-2 w-full sm:w-auto min-w-[160px] focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            )}
           </div>
-
-          {brandKits.length > 0 && (
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <div className="space-y-2">
-                <label htmlFor="num-posts" className="text-sm font-medium">
-                  Number of Posts
-                </label>
-                <Input
-                  id="num-posts"
-                  type="number"
-                  min="1"
-                  value={numberOfAds}
-                  onChange={(e) => setNumberOfAds(Number.parseInt(e.target.value) || 1)}
-                  className="w-full sm:w-24"
-                />
-              </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <Button
-                        size="default"
-                        onClick={handleGeneratePosts}
-                        disabled={isGenerating || !selectedBrandKit || userCredits < numberOfAds}
-                        className="flex items-center gap-2 w-full sm:w-auto"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="h-4 w-4" />
-                            Generate Posts ({numberOfAds} credits)
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </TooltipTrigger>
-                  {userCredits < numberOfAds && (
-                    <TooltipContent>
-                      <p>
-                        Not enough credits. You need {numberOfAds} credits but only have {userCredits}.
-                      </p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
+          {/* Generate Button */}
+          <div className="w-full sm:w-auto mt-2 sm:mt-0">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Button
+                      size="default"
+                      onClick={handleGeneratePosts}
+                      disabled={isGenerating || !selectedBrandKit || userCredits < numberOfAds}
+                      className="flex items-center gap-2 w-full sm:w-auto rounded-full h-10 px-6 bg-primary text-white shadow-md"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4" />
+                          Generate Posts ({numberOfAds} credits)
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {userCredits < numberOfAds && (
+                  <TooltipContent>
+                    <p>
+                      Not enough credits. You need {numberOfAds} credits but only have {userCredits}.
+                    </p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </div>
 
