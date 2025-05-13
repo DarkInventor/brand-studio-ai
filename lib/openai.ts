@@ -65,7 +65,7 @@ export async function generatePromptForImage(brandKit: any, options?: ImageOptio
      
      
       \nWrite a detailed 3-4 sentence prompt that would help generate an excellent image for instagram post.
-    `
+      \nCRITICAL: Any text in the image MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die.`
 
     // Generate the prompt using OpenAI
     const response = await openai.chat.completions.create({
@@ -136,9 +136,8 @@ export async function generateCaption(brandKit: any, imageUrl: string) {
       
       Format the caption with line breaks for readability.
 
-
       IMPORTANT: CAPTION MUST NOT LOOK LIKE MARKETING COPY. AVOID USING MARKETING BUZZ WORDS. KEEP THE TONE OF THE CAPTION CONSISTENT WITH THE BRAND'S TONE.
-    `
+      CRITICAL: The caption MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die.`
 
     // Generate the caption using OpenAI
     const response = await openai.chat.completions.create({
@@ -349,6 +348,7 @@ export async function addLogoToBottomRight(imageBuffer: Buffer, logoDataUrl: str
  * @param n - Number of images to generate
  * @param size - Size of the generated image
  * @param quality - Quality of the generated image
+ * @param textExpected - Indicates if text is expected in the image
  * @returns The generated image(s)
  */
 export async function generateImageWithGPTImage1(
@@ -365,6 +365,7 @@ export async function generateImageWithGPTImage1(
     | "1792x1024"
     | "1024x1792" = "1024x1024",
   quality: "standard" | "low" = "low",
+  textExpected: boolean = false,
 ) {
   try {
     // Build the prompt based on whether brand kit is provided
@@ -389,6 +390,11 @@ Advertisement Context:
     } else {
       // Add text prohibition to any caption
       prompt = `${caption}`
+    }
+
+    // If text is expected in the image, add the English/cat warning
+    if (textExpected) {
+      prompt += "\n\nCRITICAL: Any text in the image MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die."
     }
 
     console.log("Generating image with prompt length:", prompt.length)
@@ -505,20 +511,20 @@ export async function generateBrandAdvertisement(
     let imagePrompt = ""
     // Handle postType-specific prompt logic
     if (postType === "educational") {
-      imagePrompt = `Create an educational, informative Instagram post for the brand ${brandKit.name}. The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay clear, minimal, and legible text that conveys an educational or informative message about the brand, using the brand's description: "${brandKit.description || "No description provided"}". The image should match the brand's style (${brandKit.brand_tone || "Professional"}) and use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. Use all the brand information provided. Use your own creativity and knowledge to generate an image that fits the selected mood/emotion and the brand's identity. Do not ask for more information—just create the best possible image with what you have. The image MUST include the text overlay as described, and look like a real Instagram post.`;
+      imagePrompt = `Create an educational, informative Instagram post for the brand ${brandKit.name}. The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay clear, minimal, and legible text that conveys an educational or informative message about the brand, using the brand's description: "${brandKit.description || "No description provided"}". The image should match the brand's style (${brandKit.brand_tone || "Professional"}) and use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. Use all the brand information provided. Use your own creativity and knowledge to generate an image that fits the selected mood/emotion and the brand's identity. Do not ask for more information—just create the best possible image with what you have. The image MUST include the text overlay as described, and look like a real Instagram post.\n\nCRITICAL: Any text in the image MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die.`;
     } else if (postType === "product" && postTypeData?.product) {
-      imagePrompt = `Create a product showcase Instagram post highlighting: "${postTypeData.product}". The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay clear, minimal, and legible text that highlights the product and its benefits. The image should be visually appealing, modern, and match the brand's style (${brandKit.brand_tone || "Professional"}). Use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. The image MUST include the text overlay as described, and look like a real Instagram post.`;
+      imagePrompt = `Create a product showcase Instagram post highlighting: "${postTypeData.product}". The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay clear, minimal, and legible text that highlights the product and its benefits. The image should be visually appealing, modern, and match the brand's style (${brandKit.brand_tone || "Professional"}). Use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. The image MUST include the text overlay as described, and look like a real Instagram post.\n\nCRITICAL: Any text in the image MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die.`;
     } else if (postType === "personal" && postTypeData?.photoDesc) {
-      imagePrompt = `Create a personal, authentic Instagram post based on the following description: "${postTypeData.photoDesc}". The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay clear, minimal, and legible text that matches the brand's style (${brandKit.brand_tone || "Professional"}). Use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. The image MUST include the text overlay as described, and look like a real Instagram post.`;
+      imagePrompt = `Create a personal, authentic Instagram post based on the following description: "${postTypeData.photoDesc}". The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay clear, minimal, and legible text that matches the brand's style (${brandKit.brand_tone || "Professional"}). Use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. The image MUST include the text overlay as described, and look like a real Instagram post.\n\nCRITICAL: Any text in the image MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die.`;
     } else if ((postType === "inspirational" && postTypeData?.quote) || (postType === "promo" && postTypeData?.announcement)) {
       if (postType === "inspirational") {
-        imagePrompt = `Create a beautiful, inspirational Instagram post for the following quote: "${postTypeData.quote}". The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay the quote as clear, minimal, and legible text, centered and easy to read. The image should be visually striking, motivational, and match the brand's style (${brandKit.brand_tone || "Professional"}). Use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. The image MUST include the quote as text overlay, and look like a real Instagram post.`;
+        imagePrompt = `Create a beautiful, inspirational Instagram post for the following quote: "${postTypeData.quote}". The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay the quote as clear, minimal, and legible text, centered and easy to read. The image should be visually striking, motivational, and match the brand's style (${brandKit.brand_tone || "Professional"}). Use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. The image MUST include the quote as text overlay, and look like a real Instagram post.\n\nCRITICAL: Any text in the image MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die.`;
       } else if (postType === "promo") {
-        imagePrompt = `Create a visually engaging promotional Instagram post for the following announcement: "${postTypeData.announcement}". The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay the announcement as clear, minimal, and legible text, centered and easy to read. The image should be bold, eye-catching, and match the brand's style (${brandKit.brand_tone || "Professional"}). Use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. The image MUST include the announcement as text overlay, and look like a real Instagram post.`;
+        imagePrompt = `Create a visually engaging promotional Instagram post for the following announcement: "${postTypeData.announcement}". The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay the announcement as clear, minimal, and legible text, centered and easy to read. The image should be bold, eye-catching, and match the brand's style (${brandKit.brand_tone || "Professional"}). Use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. The image MUST include the announcement as text overlay, and look like a real Instagram post.\n\nCRITICAL: Any text in the image MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die.`;
       }
     } else {
       // Regular/default post
-      imagePrompt = `Create an Instagram post for the brand ${brandKit.name}. The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay clear, minimal, and legible text that conveys the brand's message, using the brand's description: "${brandKit.description || "No description provided"}". The image should match the brand's style (${brandKit.brand_tone || "Professional"}) and use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. Use all the brand information provided. Use your own creativity and knowledge to generate an image that fits the selected mood/emotion and the brand's identity. Do not ask for more information—just create the best possible image with what you have. The image MUST include the text overlay as described, and look like a real Instagram post.`;
+      imagePrompt = `Create an Instagram post for the brand ${brandKit.name}. The image MUST include a real human or human-like figure in the background, similar to popular Instagram posts. Overlay clear, minimal, and legible text that conveys the brand's message, using the brand's description: "${brandKit.description || "No description provided"}". The image should match the brand's style (${brandKit.brand_tone || "Professional"}) and use the brand's colors (${brandKit.primary_color || "#000000"}, ${brandKit.secondary_color || "#FFFFFF"}) tastefully. Style: ${options?.style || "Any"}. Mood: ${options?.mood || "Any"}. Use all the brand information provided. Use your own creativity and knowledge to generate an image that fits the selected mood/emotion and the brand's identity. Do not ask for more information—just create the best possible image with what you have. The image MUST include the text overlay as described, and look like a real Instagram post.\n\nCRITICAL: Any text in the image MUST be in ENGLISH ONLY, otherwise 20 cats die. If you hallucinate and write wrong text, 200 cats will die.`;
     }
 
     console.log("Using image prompt with length:", imagePrompt?.length || 0)

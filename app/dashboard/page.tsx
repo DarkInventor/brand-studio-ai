@@ -60,7 +60,7 @@ function Dashboard() {
         </Card>
 
         {/* Video Posts Card */}
-        <Card className="group relative overflow-hidden border-border/40 transition-all duration-300 hover:shadow-md hover:border-primary/30 hover:bg-primary/5 opacity-50">
+        <Card className="group relative overflow-hidden border-border/40 transition-all duration-300 hover:shadow-md hover:border-primary/30 hover:bg-primary/5 ">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xl">
               <Video className="h-5 w-5 text-primary" />
@@ -83,17 +83,17 @@ function Dashboard() {
             </p>
           </CardContent>
           <CardFooter className="pt-2">
-            <Button asChild className="w-full group" disabled>
-              <Link href="#" className="flex items-center justify-between">
+            <Button asChild className="w-full group" >
+              <Link href="/dashboard/video-posts" className="flex items-center justify-between">
                 <span className="flex items-center">
                   {/* <Plus className="mr-2 h-4 w-4" /> */}
-                  Coming Soon
+                  Create Video Ads
                 </span>
                 <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
           </CardFooter>
-          <Badge className="absolute top-3 right-3 bg-muted text-muted-foreground">Coming Soon</Badge>
+          {/* <Badge className="absolute top-3 right-3 bg-muted text-muted-foreground">Coming Soon</Badge> */}
         </Card>
 
         {/* Commercial Ads Card */}

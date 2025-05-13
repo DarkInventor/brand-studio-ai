@@ -29,7 +29,7 @@ const navItems = [
       {
         title: "Video Posts",
         href: "/dashboard/video-posts",
-        comingSoon: true,
+        // comingSoon: true,
       },
       {
         title: "Commercial Ads",
