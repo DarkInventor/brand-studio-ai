@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import { loadStripe } from "@stripe/stripe-js"
 import { supabase } from "@/lib/supabase"
 import { STRIPE_PRICES, PLAN_CREDITS } from "@/config/stripe"
+import { Slider } from "@/components/ui/slider"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { NumberTicker } from "@/components/magicui/number-ticker"
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -36,6 +39,13 @@ export function PricingSection() {
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null)
   const [user, setUser] = useState<any>(null)
   const [subscription, setSubscription] = useState<any>(null)
+
+  // --- Calculator State ---
+  const [calcCredits, setCalcCredits] = useState(500)
+  const [calcType, setCalcType] = useState<'image' | 'video'>('image')
+  const [calcDuration, setCalcDuration] = useState(5)
+  const [calcQuality, setCalcQuality] = useState('360p')
+  const [calcMotion, setCalcMotion] = useState('normal')
 
   useEffect(() => {
     // Get current user and subscription status
@@ -130,12 +140,13 @@ export function PricingSection() {
     {
       name: "Starter",
       price: "$9",
-      description: "Perfect for individuals just getting started",
-      imagesPerMonth: "500 Images/month",
+      description: "Perfect for individuals just getting started. Generate up to 500 images or ~125 basic 5s videos per month.",
+      imagesPerMonth: "500 Images or ~125 basic 5s videos/month",
       stripePriceId: STRIPE_PRICES.STARTER_MONTHLY,
       productId: "prod_SIAzrgXJe7WltQ",
       features: [
         { name: "Standard image quality", included: true },
+        { name: "AI-powered video generation (uses credits, see pricing table)", included: true, tooltip: "You can use your monthly credits for either images or videos. Videos cost more credits depending on quality and duration. See pricing table for details." },
         {
           name: "Basic post scheduling (up to 500 active scheduled posts)",
           included: true,
@@ -164,13 +175,14 @@ export function PricingSection() {
     {
       name: "Pro",
       price: "$24",
-      description: "Ideal for creators and small businesses",
-      imagesPerMonth: "2,000 Images/month",
+      description: "Ideal for creators and small businesses. Generate up to 2,000 images or ~500 basic 5s videos per month.",
+      imagesPerMonth: "2,000 Images or ~500 basic 5s videos/month",
       stripePriceId: STRIPE_PRICES.PRO_MONTHLY,
       productId: "prod_SIAzrgXJe7WltQ",
       popular: true,
       features: [
         { name: "Priority image generation", included: true, tooltip: "Faster image creation with higher priority." },
+        { name: "AI-powered video generation (uses credits, see pricing table)", included: true, tooltip: "You can use your monthly credits for either images or videos. Videos cost more credits depending on quality and duration. See pricing table for details." },
         {
           name: "Advanced post scheduling (up to 2000 active scheduled posts)",
           included: true,
@@ -196,8 +208,8 @@ export function PricingSection() {
     {
       name: "Business",
       price: "$59",
-      description: "For teams and growing businesses",
-      imagesPerMonth: "5,000 Images/month",
+      description: "For teams and growing businesses. Generate up to 5,000 images or ~1,250 basic 5s videos per month.",
+      imagesPerMonth: "5,000 Images or ~1,250 basic 5s videos/month",
       stripePriceId: STRIPE_PRICES.BUSINESS_MONTHLY,
       productId: "prod_SIAzrgXJe7WltQ",
       features: [
@@ -206,11 +218,8 @@ export function PricingSection() {
         { name: "API access", included: true },
         { name: "Custom templates", included: true },
         { name: "Dedicated onboarding support", included: true },
-        {
-          name: "Premium image generation priority",
-          included: true,
-          tooltip: "Top-tier image generation speed and quality.",
-        },
+        { name: "Premium image generation priority", included: true, tooltip: "Top-tier image generation speed and quality." },
+        { name: "AI-powered video generation (uses credits, see pricing table)", included: true, tooltip: "You can use your monthly credits for either images or videos. Videos cost more credits depending on quality and duration. See pricing table for details." },
         { name: "All Pro features", included: true, tooltip: "Includes everything in the Pro plan." },
       ],
       cta: "Contact Sales",
@@ -230,8 +239,176 @@ export function PricingSection() {
     return plan.cta
   }
 
+  // Credit cost lookup for video
+  function getVideoCreditCost({ quality, duration, motion_mode }: { quality: string, duration: number, motion_mode: string }) {
+    quality = String(quality).toLowerCase();
+    duration = Number(duration);
+    motion_mode = String(motion_mode).toLowerCase();
+    if (duration === 5) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return 4;
+      if (quality === "720p" && motion_mode === "normal") return 5;
+      if (quality === "1080p" && motion_mode === "normal") return 11;
+      if ((quality === "360p" || quality === "540p") && motion_mode === "smooth") return 8;
+      if (quality === "720p" && motion_mode === "smooth") return 11;
+    }
+    if (duration === 8) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return 8;
+      if (quality === "720p" && motion_mode === "normal") return 11;
+    }
+    if (duration === 10) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return 10;
+      if (quality === "720p" && motion_mode === "normal") return 14;
+      if (quality === "1080p" && motion_mode === "normal") return 22;
+    }
+    if (duration === 30) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return 30;
+      if (quality === "720p" && motion_mode === "normal") return 41;
+      if (quality === "1080p" && motion_mode === "normal") return 65;
+    }
+    return null;
+  }
+
+  // Plan credit presets
+  const planCredits = {
+    Starter: 500,
+    Pro: 2000,
+    Business: 5000,
+  }
+
+  // Calculate result
+  let calcResult = 0
+  if (calcType === 'image') {
+    calcResult = Math.floor(calcCredits / 1)
+  } else {
+    const cost = getVideoCreditCost({ quality: calcQuality, duration: calcDuration, motion_mode: calcMotion }) || 1
+    calcResult = Math.floor(calcCredits / cost)
+  }
+
   return (
     <section className="py-16 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* Calculator UI with modern components */}
+      <Card className="mb-10 max-w-2xl mx-auto border border-gray-200 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Credit Usage Calculator</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4 items-end mb-4">
+            <div className="flex-1 min-w-[180px]">
+              <div className="flex items-center justify-between mb-1">
+                <span className="block text-xs font-medium">Credits</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-xs text-gray-400 cursor-help ml-1">ⓘ</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <span>Set the number of credits you want to calculate for. Select a plan to autofill.</span>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className="flex items-center gap-2">
+                <Slider
+                  min={1}
+                  max={5000}
+                  step={1}
+                  value={[calcCredits]}
+                  onValueChange={([v]) => setCalcCredits(v)}
+                  className="w-full"
+                />
+                <span className="w-12 text-right text-sm font-mono">{calcCredits}</span>
+              </div>
+            </div>
+            <div className="min-w-[140px]">
+              <span className="block text-xs font-medium mb-1">Plan</span>
+              <Select onValueChange={v => setCalcCredits(planCredits[v as keyof typeof planCredits])}>
+                <SelectTrigger className="w-full h-9">
+                  <SelectValue placeholder="Custom" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Starter">Starter (500)</SelectItem>
+                  <SelectItem value="Pro">Pro (2,000)</SelectItem>
+                  <SelectItem value="Business">Business (5,000)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[140px]">
+              <span className="block text-xs font-medium mb-1">Content Type</span>
+              <Select value={calcType} onValueChange={v => setCalcType(v as 'image' | 'video')}>
+                <SelectTrigger className="w-full h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="image">Image</SelectItem>
+                  <SelectItem value="video">Video</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {calcType === 'video' && (
+              <>
+                <div className="min-w-[120px]">
+                  <span className="block text-xs font-medium mb-1">Duration</span>
+                  <Select value={String(calcDuration)} onValueChange={v => setCalcDuration(Number(v))}>
+                    <SelectTrigger className="w-full h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 sec</SelectItem>
+                      <SelectItem value="8">8 sec</SelectItem>
+                      <SelectItem value="10">10 sec</SelectItem>
+                      <SelectItem value="30">30 sec</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="min-w-[120px]">
+                  <span className="block text-xs font-medium mb-1">Quality</span>
+                  <Select value={calcQuality} onValueChange={v => setCalcQuality(v)}>
+                    <SelectTrigger className="w-full h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="360p">360p</SelectItem>
+                      <SelectItem value="540p">540p</SelectItem>
+                      <SelectItem value="720p">720p</SelectItem>
+                      <SelectItem value="1080p">1080p</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="min-w-[120px]">
+                  <span className="block text-xs font-medium mb-1">Motion</span>
+                  <Select value={calcMotion} onValueChange={v => setCalcMotion(v)}>
+                    <SelectTrigger className="w-full h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="smooth">Smooth</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="mt-2 text-base font-medium flex items-center gap-2">
+            {calcType === 'image' ? (
+              <>
+                With <span className="font-bold">{calcCredits}</span> credits, you can create
+                <NumberTicker value={calcResult} className="ml-2 text-primary text-xl font-bold" /> images.
+              </>
+            ) : (
+              <>
+                With <span className="font-bold">{calcCredits}</span> credits, you can create
+                <NumberTicker value={calcResult} className="ml-2 text-primary text-xl font-bold" /> videos
+                <span className="ml-1 text-xs text-gray-500">({calcDuration}s, {calcQuality.toUpperCase()}, {calcMotion} motion)</span>
+              </>
+            )}
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            Video credit costs vary by duration, quality, and motion. <a href="https://github.com/DarkInventor/brand-studio#content-generation-costs" target="_blank" rel="noopener noreferrer" className="underline text-primary">See full pricing table</a>.
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-2 mb-4">
           <Instagram className="h-6 w-6 text-primary" />
@@ -243,6 +420,9 @@ export function PricingSection() {
       <div className="mb-8 text-center">
         <div className="inline-block bg-primary/10 text-primary px-4 py-2 rounded-full font-medium text-sm">
           All plans include: {generalInclusions.join(", ")}
+        </div>
+        <div className="mt-2 text-xs text-gray-600 max-w-xl mx-auto">
+          <strong>Unified Credit System:</strong> Use your monthly credits for either images or videos. Video generation uses more credits per post depending on quality and duration. <a href="https://github.com/DarkInventor/brand-studio#content-generation-costs" target="_blank" rel="noopener noreferrer" className="underline text-primary">See pricing table</a> for full details and examples.
         </div>
       </div>
 
