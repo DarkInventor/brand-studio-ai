@@ -130,3 +130,85 @@ npm run dev
 Contact us for custom plans, enterprise needs, or support.
 
 
+**Additional Video AD Info**  
+# Unified Credit System Pricing
+
+## Monthly Plan Credits
+| Plan | Monthly Price | Credits/Month |
+|------|--------------|--------------|
+| Starter | $9 | 500 credits |
+| Pro | $24 | 2,000 credits |
+| Business | $59 | 5,000 credits |
+
+## Content Generation Costs
+| Content Type | Details | Your API Cost ($) | Credits Required | Cost per Credit |
+|------------|------------|--------|------------------|--------------|
+| Image | Standard quality | $0.11 | 1 credit | $0.11 per credit |
+| **5-second Videos** |
+| Video: 360P/540P (5s, normal) | Basic video | $0.45 | 4 credits | $0.1125 per credit |
+| Video: 720P (5s, normal) | Standard video | $0.60 | 5 credits | $0.12 per credit |
+| Video: 1080P (5s, normal) | Premium video | $1.20 | 11 credits | $0.1091 per credit |
+| Video: 360P/540P (5s, smooth) | Basic video with smooth motion | $0.90 | 8 credits | $0.1125 per credit |
+| Video: 720P (5s, smooth) | Standard video with smooth motion | $1.20 | 11 credits | $0.1091 per credit |
+| **8-second Videos** |
+| Video: 360P/540P (8s, normal) | Extended basic video | $0.90 | 8 credits | $0.1125 per credit |
+| Video: 720P (8s, normal) | Extended standard video | $1.20 | 11 credits | $0.1091 per credit |
+| **10-second Videos** (estimated costs) |
+| Video: 360P/540P (10s, normal) | Extended basic video | $1.10* | 10 credits | $0.11 per credit |
+| Video: 720P (10s, normal) | Extended standard video | $1.50* | 14 credits | $0.1071 per credit |
+| Video: 1080P (10s, normal) | Extended premium video | $2.40* | 22 credits | $0.1091 per credit |
+| **30-second Videos** (estimated costs) |
+| Video: 360P/540P (30s, normal) | Long basic video | $3.30* | 30 credits | $0.11 per credit |
+| Video: 720P (30s, normal) | Long standard video | $4.50* | 41 credits | $0.1098 per credit |
+| Video: 1080P (30s, normal) | Long premium video | $7.20* | 65 credits | $0.1108 per credit |
+
+*Estimated costs based on proportional scaling from 5s and 8s videos
+
+### Video Generation Cost Table
+
+| Duration | Quality | Motion | Credits | API Cost ($) | $/Credit | $/Video |
+|----------|---------|--------|---------|--------------|----------|---------|
+| 5s       | 360P/540P | normal | 4       | $0.45        | $0.1125  | $0.45   |
+| 5s       | 720P      | normal | 5       | $0.60        | $0.12    | $0.60   |
+| 5s       | 1080P     | normal | 11      | $1.20        | $0.1091  | $1.20   |
+| 5s       | 360P/540P | smooth | 8       | $0.90        | $0.1125  | $0.90   |
+| 5s       | 720P      | smooth | 11      | $1.20        | $0.1091  | $1.20   |
+| 8s       | 360P/540P | normal | 8       | $0.90        | $0.1125  | $0.90   |
+| 8s       | 720P      | normal | 11      | $1.20        | $0.1091  | $1.20   |
+| 10s      | 360P/540P | normal | 10      | $1.10*       | $0.11    | $1.10   |
+| 10s      | 720P      | normal | 14      | $1.50*       | $0.1071  | $1.50   |
+| 10s      | 1080P     | normal | 22      | $2.40*       | $0.1091  | $2.40   |
+| 30s      | 360P/540P | normal | 30      | $3.30*       | $0.11    | $3.30   |
+| 30s      | 720P      | normal | 41      | $4.50*       | $0.1098  | $4.50   |
+| 30s      | 1080P     | normal | 65      | $7.20*       | $0.1108  | $7.20   |
+
+*10s and 30s costs are estimated by proportional scaling from 5s and 8s video costs.
+
+**How to calculate your cost per video:**
+- Each video generation deducts a specific number of credits based on the table above.
+- Your cost per video = Credits used × Cost per credit (see your plan).
+- Example: A 5s 720P normal video uses 5 credits. On the Starter plan ($0.11/credit), that's $0.55 per video.
+- For the most accurate cost, check your plan's credit price and the video parameters you select.
+
+## Additional Credits
+| Additional Credits | Price | Cost to You | Your Profit |
+|-------------------|-------|-------------|------------|
+| 500 credits | $9 | ~$5.55 (at $0.0111/credit) | ~$3.45 (38%) |
+| 1,000 credits | $16 | ~$11.10 | ~$4.90 (31%) |
+| 2,000 credits | $28 | ~$22.20 | ~$5.80 (21%) |
+| 5,000 credits | $65 | ~$55.50 | ~$9.50 (15%) |
+
+## Usage Examples
+| Plan | Credits | Possible Usage |
+|------|---------|---------------|
+| Starter (500 credits) | 500 | 500 images OR 125 basic 5s videos OR 45 standard 10s videos OR 16 basic 30s videos |
+| Pro (2,000 credits) | 2,000 | 2,000 images OR 500 basic 5s videos OR 181 standard 10s videos OR 66 basic 30s videos |
+| Business (5,000 credits) | 5,000 | 5,000 images OR 1,250 basic 5s videos OR 454 standard 10s videos OR 166 basic 30s videos |
+
+## Implementation Recommendations
+1. Set credit costs to maintain approximately 30% profit margin across all content types
+2. Adjusted the 5,000 credit package price to $65 to improve profit margin to 15%
+3. Consider creating a "Video Pack" add-on for users who primarily want to create videos
+4. Implement usage analytics to track which video durations and resolutions are most popular
+5. Add clear usage examples to help users understand how many videos they can create with each plan
+6. If you find actual API costs for 10s and 30s videos differ from estimates, adjust credit requirements accordingly

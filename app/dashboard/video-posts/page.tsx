@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Bean, Clock, ImageIcon, LucideFrame, Maximize2, Mic, Palette, Sparkles, Type } from "lucide-react"
+import { Bean, Clock, ImageIcon, LucideFrame, Maximize2, Mic, Palette, Sparkles, Type, CreditCard } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Image } from "@radix-ui/react-avatar"
 import {
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 // Remotion composition for video editing
 const VideoComposition = ({ videoUrl }: { videoUrl: string }) => {
@@ -45,6 +46,7 @@ export default function DiscoverPage() {
   const [editingVideo, setEditingVideo] = useState<any | null>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imageBase64, setImageBase64] = useState<string | null>(null)
+  const [userCredits, setUserCredits] = useState<number>(0)
 
   // Map duration string to number
   const durationMap: Record<string, number> = {
@@ -54,11 +56,53 @@ export default function DiscoverPage() {
     "30 sec": 30,
   }
 
+  // Credit cost lookup
+  function getVideoCreditCost({ quality, duration, motion_mode }: { quality: string, duration: number, motion_mode: string }) {
+    quality = String(quality).toLowerCase();
+    duration = Number(duration);
+    motion_mode = String(motion_mode).toLowerCase();
+    if (duration === 5) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return 4;
+      if (quality === "720p" && motion_mode === "normal") return 5;
+      if (quality === "1080p" && motion_mode === "normal") return 11;
+      if ((quality === "360p" || quality === "540p") && motion_mode === "smooth") return 8;
+      if (quality === "720p" && motion_mode === "smooth") return 11;
+    }
+    if (duration === 8) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return 8;
+      if (quality === "720p" && motion_mode === "normal") return 11;
+    }
+    if (duration === 10) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return 10;
+      if (quality === "720p" && motion_mode === "normal") return 14;
+      if (quality === "1080p" && motion_mode === "normal") return 22;
+    }
+    if (duration === 30) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return 30;
+      if (quality === "720p" && motion_mode === "normal") return 41;
+      if (quality === "1080p" && motion_mode === "normal") return 65;
+    }
+    return null;
+  }
+
   useEffect(() => {
-    async function fetchBrandKitsAndVideos() {
+    async function fetchBrandKitsAndVideosAndCredits() {
       setIsLoading(true)
       setError(null)
       const supabase = createClient()
+      // Fetch user credits
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (sessionData?.session?.user?.id) {
+        const { data: profileData } = await supabase.from("profiles").select("credits").eq("id", String(sessionData.session.user.id)).single()
+        if (
+          profileData &&
+          typeof profileData === 'object' &&
+          'credits' in profileData &&
+          typeof (profileData as any).credits === 'number'
+        ) {
+          setUserCredits((profileData as any).credits)
+        }
+      }
       // Fetch brand kits
       const { data: kitsRaw, error: kitsError } = await supabase.from("brand_kits").select("*")
       const kits = Array.isArray(kitsRaw) ? (kitsRaw as any[]).filter((k) => k && typeof k.id === 'string') : []
@@ -86,7 +130,7 @@ export default function DiscoverPage() {
       }
       setIsLoading(false)
     }
-    fetchBrandKitsAndVideos()
+    fetchBrandKitsAndVideosAndCredits()
   }, [])
 
   async function handleBrandKitChange(value: string) {
@@ -149,6 +193,9 @@ export default function DiscoverPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to generate video")
       setVideoPosts((prev) => [data.post, ...prev])
+      if (typeof data.creditsRemaining === 'number') {
+        setUserCredits(data.creditsRemaining)
+      }
     } catch (err: any) {
       setError(err.message || "Unknown error")
     } finally {
@@ -156,10 +203,24 @@ export default function DiscoverPage() {
     }
   }
 
+  // Calculate required credits for current selection
+  const requiredCredits = getVideoCreditCost({
+    quality: selectedQuality,
+    duration: durationMap[selectedDuration] || 5,
+    motion_mode: "normal", // If you add a UI for motion_mode, use the selected value
+  })
+  const hasEnoughCredits = userCredits >= (requiredCredits || 0)
+
   return (
     <div className="bg-white text-gray-900 min-h-screen">
       <div className="container mx-auto p-4">
-        <h1 className="text-3xl font-bold mb-6">Video Posts</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Video Posts</h1>
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-muted-foreground" />
+            <span className="font-medium">{userCredits} credits remaining</span>
+          </div>
+        </div>
         {/* Brand Kit Dropdown */}
         <div className="mb-4">
           <DropdownMenu>
@@ -402,13 +463,28 @@ export default function DiscoverPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-1.5 gap-1.5">          
-            <Button
-              className="bg-primary text-white rounded-full px-4 backdrop-blur-sm w-full sm:w-auto mt-1 sm:mt-0 text-sm h-8"
-              onClick={handleCreateVideo}
-              disabled={isGenerating}
-            >
-              {isGenerating ? "Generating..." : "Create"} <span className="ml-1 text-xs bg-white/20 px-1 py-0.5 rounded">⌘ 30</span>
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="w-full sm:w-auto mt-2 sm:mt-0">
+                    <Button
+                      className="bg-primary text-white rounded-full px-4 backdrop-blur-sm w-full sm:w-auto mt-1 sm:mt-0 text-sm h-8"
+                      onClick={handleCreateVideo}
+                      disabled={isGenerating || !hasEnoughCredits}
+                    >
+                      {isGenerating ? "Generating..." : `Create (${requiredCredits || 0} credits)`}
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!hasEnoughCredits && (
+                  <TooltipContent>
+                    <p>
+                      Not enough credits. You need {requiredCredits} credits but only have {userCredits}.
+                    </p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </div>
           {error && <div className="text-red-500 text-xs mt-2">{error}</div>}
         </div>

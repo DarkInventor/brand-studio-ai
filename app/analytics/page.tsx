@@ -86,6 +86,53 @@ export default function AnalyticsPage() {
     return item && typeof item === "object" && "suggestion" in item
   }
 
+  // Video credit/cost lookup
+  function getVideoCreditCost({ quality, duration, motion_mode }: { quality: string, duration: number, motion_mode: string }) {
+    quality = String(quality).toLowerCase();
+    duration = Number(duration);
+    motion_mode = String(motion_mode).toLowerCase();
+    if (duration === 5) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return { credits: 4, cost: 0.45 };
+      if (quality === "720p" && motion_mode === "normal") return { credits: 5, cost: 0.60 };
+      if (quality === "1080p" && motion_mode === "normal") return { credits: 11, cost: 1.20 };
+      if ((quality === "360p" || quality === "540p") && motion_mode === "smooth") return { credits: 8, cost: 0.90 };
+      if (quality === "720p" && motion_mode === "smooth") return { credits: 11, cost: 1.20 };
+    }
+    if (duration === 8) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return { credits: 8, cost: 0.90 };
+      if (quality === "720p" && motion_mode === "normal") return { credits: 11, cost: 1.20 };
+    }
+    if (duration === 10) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return { credits: 10, cost: 1.10 };
+      if (quality === "720p" && motion_mode === "normal") return { credits: 14, cost: 1.50 };
+      if (quality === "1080p" && motion_mode === "normal") return { credits: 22, cost: 2.40 };
+    }
+    if (duration === 30) {
+      if ((quality === "360p" || quality === "540p") && motion_mode === "normal") return { credits: 30, cost: 3.30 };
+      if (quality === "720p" && motion_mode === "normal") return { credits: 41, cost: 4.50 };
+      if (quality === "1080p" && motion_mode === "normal") return { credits: 65, cost: 7.20 };
+    }
+    return { credits: 0, cost: 0 };
+  }
+
+  // Calculate personal cost for all posts
+  function calculatePersonalCost(posts: Post[]) {
+    let total = 0
+    for (const post of posts) {
+      if (post.type === "video") {
+        const duration = Number(post.video_duration) || 5
+        const quality = post.quality || "360p"
+        const motion_mode = post.motion_mode || "normal"
+        const { cost } = getVideoCreditCost({ quality, duration, motion_mode })
+        total += cost
+      } else {
+        // Assume image
+        total += 0.011
+      }
+    }
+    return total
+  }
+
   async function fetchData(showRefreshIndicator = false) {
     if (showRefreshIndicator) {
       setRefreshing(true)
@@ -132,7 +179,7 @@ export default function AnalyticsPage() {
         setPosts(postsRows as unknown as Post[])
         setBrandKits(brandKitsRows as unknown as BrandKit[])
           setScheduledPostsCount(scheduledCount || 0)
-        setPersonalCost((postsRows?.length || 0) * 0.011)
+        setPersonalCost(calculatePersonalCost(postsRows))
 
         if (showRefreshIndicator) {
           toast({
@@ -235,6 +282,11 @@ export default function AnalyticsPage() {
   }
 
   const filteredPosts = getFilteredPosts()
+
+  // Update personal cost when posts or filter changes
+  useEffect(() => {
+    setPersonalCost(calculatePersonalCost(filteredPosts))
+  }, [filteredPosts])
 
   // Analytics calculations
   const totalPosts = filteredPosts.length
