@@ -7,9 +7,7 @@ import { getBrandKit } from "./brand-kits"
 import {
   generateCaption,
   generateImageWithGPTImage1,
-  generateImageWithLogoEdit,
   downloadImageToBuffer,
-  generateBrandAdvertisement,
   type ImageOptions,
 } from "@/lib/openai"
 import type { Database, BrandKit } from "@/lib/supabase/database.types"
@@ -98,27 +96,33 @@ export async function generatePosts(brandKitId: string, count = 1, imageOptions?
         const postNumber = i * batchSize + j + 1
         console.log(`Server: Generating post ${postNumber}/${count}`)
 
-        // Generate caption using OpenAI
-        const captionRaw = await generateCaption(brandKit, "")
-        const caption = typeof captionRaw === "string" ? captionRaw : ""
-        console.log("Generated caption:", caption)
-
         // Generate image using advanced options and post type
         let generatedImageResponse = null
         const kitAny = brandKit as any
         try {
-          generatedImageResponse = await generateBrandAdvertisement(kitAny, caption, "1024x1024", "low", imageOptions, postType, postTypeData)
+          console.log("[generatePosts] Calling generateImageWithGPTImage1 with:", {
+            brandKit: kitAny,
+            postType,
+            postTypeData,
+            size: "1024x1024",
+            quality: "low",
+            imageOptions
+          })
+          generatedImageResponse = await generateImageWithGPTImage1(
+            kitAny,
+            postType,
+            postTypeData,
+            "1024x1024",
+            "low",
+            imageOptions
+          )
+          console.log("[generatePosts] generateImageWithGPTImage1 result:", generatedImageResponse)
         } catch (e) {
-          console.error("Error in generateBrandAdvertisement, falling back to legacy:", e)
+          console.error("[generatePosts] Error in generateImageWithGPTImage1:", e)
           if (kitAny.logo_url && typeof kitAny.logo_url === "string" && kitAny.logo_url.startsWith("data:image/")) {
-            try {
-              generatedImageResponse = await generateImageWithLogoEdit(caption, kitAny)
-            } catch (e) {
-              console.error("Error using edits endpoint, falling back to generations:", e)
-              generatedImageResponse = await generateImageWithGPTImage1(caption, kitAny)
-            }
+            console.error("[generatePosts] Would fallback to generateImageWithLogoEdit, but it is not available.")
           } else {
-            generatedImageResponse = await generateImageWithGPTImage1(caption, kitAny)
+            console.error("[generatePosts] No fallback available for image generation error.")
           }
         }
         let imageUrl = ""
@@ -154,7 +158,7 @@ export async function generatePosts(brandKitId: string, count = 1, imageOptions?
         const post: Database["public"]["Tables"]["posts"]["Insert"] = {
           user_id: user.id,
           brand_kit_id: safeBrandKit.id,
-          caption: caption || "",
+          caption: "",
           image_url: imageUrl || "",
           status: "draft",
         }

@@ -364,8 +364,8 @@ export default function DiscoverPage() {
                 <DropdownMenuContent>
                   <DropdownMenuItem onSelect={() => setSelectedDuration("5 sec")}>5 sec</DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setSelectedDuration("8 sec")}>8 sec</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setSelectedDuration("10 sec")}>10 sec</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setSelectedDuration("30 sec")}>30 sec</DropdownMenuItem>
+                  {/* <DropdownMenuItem onSelect={() => setSelectedDuration("10 sec")}>10 sec</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setSelectedDuration("30 sec")}>30 sec</DropdownMenuItem> */}
                 </DropdownMenuContent>
               </DropdownMenu>
               {/* Style dropdown using DropdownMenu */}
