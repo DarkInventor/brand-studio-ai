@@ -57,8 +57,12 @@ export default function BrandKitForm() {
       const kitsRaw = await getBrandKits()
       const kits = (kitsRaw || []).filter((k: any) => k && typeof k === 'object' && typeof k.id === 'string' && typeof k.name === 'string')
       setBrandKits(kits)
-      if (kits.length > 0 && (kits[0] as any) && typeof (kits[0] as any).id === 'string') setSelectedBrandKitId((kits[0] as any).id)
-      setActiveTab("existing")
+      if (kits.length > 0) {
+        setSelectedBrandKitId((kits[0] as unknown as { id: string }).id)
+        setActiveTab("existing")
+      } else {
+        setActiveTab("create")
+      }
       setIsLoading(false)
     }
     checkAuthAndLoadKits()
@@ -155,7 +159,7 @@ export default function BrandKitForm() {
       const kits = (kitsRaw || []).filter((k: any) => k && typeof k === 'object' && typeof k.id === 'string' && typeof k.name === 'string');
       setBrandKits(kits);
       if (kits.length > 0) {
-        setSelectedBrandKitId(kits[0].id);
+        setSelectedBrandKitId((kits[0] as unknown as { id: string }).id);
       } else {
         setSelectedBrandKitId("");
         setActiveTab("create");
