@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { BrandLogo } from "@/components/brand-logo"
 import { BrandBackground } from "@/components/brand-background"
-import { Loader2, Github, Mail } from "lucide-react"
-import { signIn, signInWithGoogle, signInWithGitHub } from "@/lib/actions/auth"
+import { Loader2, Facebook, Mail } from "lucide-react"
+import { signIn, signInWithGoogle, signInWithFacebook } from "@/lib/actions/auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // Update the component to include social login
@@ -47,11 +47,11 @@ export default function LoginPage() {
     }
   }
 
-  async function handleGitHubSignIn() {
-    setIsSocialLoading("github")
+  async function handleFacebookSignIn() {
+    setIsSocialLoading("facebook")
     setError(null)
 
-    const result = await signInWithGitHub()
+    const result = await signInWithFacebook()
 
     if (result?.error) {
       setError(result.error)
@@ -114,15 +114,15 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={handleGitHubSignIn}
+                onClick={handleFacebookSignIn}
                 disabled={!!isSocialLoading || isLoading}
               >
-                {isSocialLoading === "github" ? (
+                {isSocialLoading === "facebook" ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <Github className="h-4 w-4 mr-2" />
+                  <Facebook className="h-4 w-4 mr-2" />
                 )}
-                GitHub
+                Facebook
               </Button>
             </div>
 

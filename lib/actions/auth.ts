@@ -135,12 +135,12 @@ export async function signInWithGoogle() {
   }
 }
 
-export async function signInWithGitHub() {
+export async function signInWithFacebook() {
   try {
     const supabase = createActionClient()
 
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "github",
+      provider: "facebook",
       options: {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
       },
@@ -152,8 +152,8 @@ export async function signInWithGitHub() {
 
     return { url: data.url }
   } catch (error) {
-    console.error("Error with GitHub sign-in:", error)
-    return { error: "An unexpected error occurred with GitHub sign-in." }
+    console.error("Error with Facebook sign-in:", error)
+    return { error: "An unexpected error occurred with Facebook sign-in." }
   }
 }
 
