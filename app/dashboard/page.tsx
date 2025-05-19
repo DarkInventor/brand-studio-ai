@@ -105,9 +105,9 @@ function Dashboard() {
           </CardHeader>
           <CardContent className="pb-0">
             <div className="relative aspect-video mb-4 overflow-hidden rounded-lg bg-blue-100">
-              <Image
-                src="/images/twitter-card.png"
-                alt="Twitter Post"
+            <Image
+                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/attachments/gen-images/public/images/twitter-card-5qh5h0FApqtxq1bB3l7xT6U6zAEK83.png"
+                alt="Video Posts"
                 width={400}
                 height={200}
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -142,7 +142,7 @@ function Dashboard() {
           <CardContent className="pb-0">
             <div className="relative aspect-video mb-4 overflow-hidden rounded-lg bg-blue-200">
               <Image
-                src="/images/linkedin-card.png"
+                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/attachments/gen-images/public/images/linkedin-card-5o1KKT1BJ5VvqJOI251q0lHQXHsrFo.png"
                 alt="LinkedIn Post"
                 width={400}
                 height={200}

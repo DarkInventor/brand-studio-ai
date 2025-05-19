@@ -1,16 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { TweetCard } from "@/components/social/TweetCard"
-import { Loader2, Sparkles, Palette, Type, Plus, Trash2 } from "lucide-react"
+import { Loader2, Sparkles, Palette, Type, Plus, Trash2, ArrowLeft, ImageIcon, X, Send } from "lucide-react"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft } from "lucide-react"
+import { getBrandKits } from "@/lib/actions/brand-kits"
+import { createClient } from "@/lib/supabase/client"
 
 // Constants for dropdown options
 const TWEET_TYPES = [
@@ -32,9 +35,29 @@ interface TweetItem {
   content: string
 }
 
+// Type guard for brand kit
+function isValidBrandKit(obj: any): obj is { id: string; name: string } {
+  return obj && typeof obj === 'object' && typeof obj.id === 'string' && typeof obj.name === 'string';
+}
+
+// Type guard for post
+function isValidPost(obj: any): obj is { id: string; tweet_post: string | null; tweet_thread: string | null } {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    typeof obj.id === 'string' &&
+    'tweet_post' in obj &&
+    'tweet_thread' in obj
+  );
+}
+
 export default function TwitterPostsPage() {
   // For single tweet mode
   const [tweet, setTweet] = useState("")
+
+  // For image upload
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // For thread mode
   const [tweetThread, setTweetThread] = useState<TweetItem[]>([{ id: "1", content: "" }])
@@ -45,18 +68,87 @@ export default function TwitterPostsPage() {
   const [error, setError] = useState<string | null>(null)
   const [threadLength, setThreadLength] = useState(3)
 
+  // Text area state
+  const [textareaFocused, setTextareaFocused] = useState(false)
+
   // UI state variables
   const [selectedBrandKit, setSelectedBrandKit] = useState("")
   const [tweetType, setTweetType] = useState("standard")
   const [style, setStyle] = useState("Professional")
   const [mood, setMood] = useState("Neutral")
 
-  // Mock brand kits for demo
-  const validBrandKits = [
-    { id: "personal", name: "Personal" },
-    { id: "business", name: "Business" },
-    { id: "creative", name: "Creative" },
-  ]
+  // Real brand kits from Supabase
+  const [brandKits, setBrandKits] = useState<any[]>([])
+
+  // User/session state
+  const [userId, setUserId] = useState<string | null>(null)
+  // Posts state
+  const [posts, setPosts] = useState<any[]>([])
+
+  // State for deleting
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+
+  // Fetch user and posts on mount, restoring selectedBrandKit from localStorage if possible
+  useEffect(() => {
+    async function fetchUserAndPosts() {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) setUserId(session.user.id);
+      // Fetch brand kits as before
+      const kits = await getBrandKits();
+      setBrandKits(kits);
+      const firstValid = Array.isArray(kits) ? kits.find(isValidBrandKit) : null;
+      // Restore from localStorage if possible
+      let storedBrandKitId: string | null = null;
+      if (typeof window !== "undefined") {
+        storedBrandKitId = localStorage.getItem("selectedBrandKitId");
+      }
+      const validStored = kits.find((k: any) => k.id === storedBrandKitId);
+      if (validStored && isValidBrandKit(validStored)) {
+        setSelectedBrandKit(validStored.id);
+      } else if (firstValid && isValidBrandKit(firstValid)) {
+        setSelectedBrandKit(firstValid.id);
+      }
+      // Fetch posts for this user/brand kit
+      const brandKitIdToUse = validStored && isValidBrandKit(validStored) ? validStored.id : (firstValid && isValidBrandKit(firstValid) ? firstValid.id : null);
+      if (session?.user?.id && brandKitIdToUse) {
+        const { data: fetchedPosts } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('user_id', session.user.id as any)
+          .eq('brand_kit_id', brandKitIdToUse as any)
+          .eq('platform', 'twitter' as any)
+          .order('created_at', { ascending: false });
+        setPosts(fetchedPosts || []);
+      }
+    }
+    fetchUserAndPosts();
+  }, []);
+
+  // Fetch posts when selectedBrandKit or userId changes
+  useEffect(() => {
+    async function fetchPostsForBrandKit() {
+      if (!userId || !selectedBrandKit) return;
+      const supabase = createClient();
+      const { data: fetchedPosts } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', userId as any)
+        .eq('brand_kit_id', selectedBrandKit as any)
+        .eq('platform', 'twitter' as any)
+        .order('created_at', { ascending: false });
+      setPosts(fetchedPosts || []);
+    }
+    fetchPostsForBrandKit();
+  }, [selectedBrandKit, userId]);
+
+  // Only use valid brand kits (with string id) in the render scope
+  const validBrandKits = Array.isArray(brandKits) ? brandKits.filter(isValidBrandKit) : [];
+
+  // Get the brand name for the selected brand kit
+  const selectedBrand = brandKits.find((bk) => bk.id === selectedBrandKit);
+  const brandName = selectedBrand?.name || "Brand";
+  const brandLogo = selectedBrand?.logo_url || "/default-avatar.png";
 
   // Handle tweet type change
   const handleTweetTypeChange = (type: string) => {
@@ -88,6 +180,26 @@ export default function TwitterPostsPage() {
     }
   }
 
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        setImagePreview(event.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Remove uploaded image
+  const removeImage = () => {
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
   // Generate tweet or thread based on current mode
   async function handleGenerate() {
     setLoading(true)
@@ -100,6 +212,7 @@ export default function TwitterPostsPage() {
         style,
         mood,
         tweetType,
+        hasImage: !!imagePreview,
       }
 
       // Add appropriate content based on tweet type
@@ -136,10 +249,39 @@ export default function TwitterPostsPage() {
     setLoading(false)
   }
 
-  // Accept the AI suggestion
-  function handleAccept() {
+  // Placeholder: get the postId for the current post (replace with your actual logic)
+  const postId = "REPLACE_WITH_CURRENT_POST_ID";
+
+  // Save to Supabase when accepting a suggestion (insert new post)
+  async function saveToSupabase({ tweetText, threadArray }: { tweetText?: string, threadArray?: string[] }) {
+    if (!userId || !selectedBrandKit) return;
+    const supabase = createClient();
+    let insertObj: any = {
+      user_id: userId,
+      brand_kit_id: selectedBrandKit,
+      caption: tweetText || (threadArray ? threadArray[0] : ""),
+      image_url: "",
+      status: "draft",
+      type: "text",
+      platform: "twitter",
+      tweet_post: tweetText || null,
+      tweet_thread: threadArray ? JSON.stringify(threadArray) : null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.from('posts').insert([insertObj]).select().single();
+    if (error) {
+      setError('Failed to save tweet(s) to Supabase.');
+    } else {
+      // Add new post to local state
+      setPosts((prev) => [data, ...prev]);
+    }
+  }
+
+  async function handleAccept() {
     if (tweetType === "standard" && typeof suggestion === "string") {
       setTweet(suggestion)
+      await saveToSupabase({ tweetText: suggestion })
     } else if (tweetType === "thread" && Array.isArray(suggestion)) {
       // Create new thread items from suggestions
       const newThread = suggestion.map((content, index) => ({
@@ -147,6 +289,7 @@ export default function TwitterPostsPage() {
         content,
       }))
       setTweetThread(newThread)
+      await saveToSupabase({ threadArray: suggestion })
     }
     setSuggestion("")
   }
@@ -159,6 +302,22 @@ export default function TwitterPostsPage() {
       setTweetThread([{ id: "1", content: "" }])
     }
     setSuggestion("")
+    setImagePreview(null)
+  }
+
+  // Delete post from Supabase and local state
+  async function handleDeletePost(postId: string) {
+    if (!postId) return;
+    if (!window.confirm("Are you sure you want to delete this post? This cannot be undone.")) return;
+    setDeletingPostId(postId);
+    const supabase = createClient();
+    const { error } = await supabase.from('posts').delete().eq('id', postId as any);
+    if (error) {
+      setError('Failed to delete post.');
+    } else {
+      setPosts((prev: any[]) => prev.filter((p) => p.id !== postId));
+    }
+    setDeletingPostId(null);
   }
 
   return (
@@ -173,7 +332,9 @@ export default function TwitterPostsPage() {
             </Link>
           </Button>
           <h1 className="text-2xl font-bold tracking-tight">Twitter Posts</h1>
-          <Badge variant="outline" className="ml-2 bg-primary/5 text-primary">AI Generated</Badge>
+          <Badge variant="outline" className="ml-2 bg-primary/5 text-primary">
+            AI Generated
+          </Badge>
         </div>
         <p className="text-muted-foreground mb-2">
           {tweetType === "standard"
@@ -184,9 +345,45 @@ export default function TwitterPostsPage() {
 
       {/* Main Content Area */}
       <div className="max-w-2xl mx-auto p-4">
+        {/* Fetched Twitter Posts */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">Your Twitter Posts</h2>
+          {posts.filter(isValidPost).map((post) => (
+            <Card key={post.id} className="mb-4 p-4 border border-gray-200/70 bg-white/80 shadow-sm relative">
+              {/* Delete button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 h-7 w-7 text-red-500 hover:text-red-700"
+                onClick={() => handleDeletePost(post.id)}
+                disabled={deletingPostId === post.id}
+                title="Delete post"
+              >
+                {deletingPostId === post.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </Button>
+              {post.tweet_post && (
+                <TweetCard
+                  post={{ caption: post.tweet_post }}
+                  user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
+                />
+              )}
+              {post.tweet_thread && (
+                <div className="space-y-1">
+                  {JSON.parse(post.tweet_thread).map((tweet: string, idx: number) => (
+                    <TweetCard
+                      key={idx}
+                      post={{ caption: tweet }}
+                      user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
+                    />
+                  ))}
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
         {/* Thread Controls - Only show when in thread mode */}
         {tweetType === "thread" && (
-          <Card className="mb-4 p-4 flex items-center border border-gray-200/70 bg-white/80 shadow-sm">
+          <Card className="mb-4 p-4 flex items-center justify-between border border-gray-200/70 bg-white/80 shadow-sm">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Thread Length:</span>
               <DropdownMenu>
@@ -204,6 +401,16 @@ export default function TwitterPostsPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addThreadTweet}
+              className="flex items-center gap-1"
+              disabled={tweetThread.length >= 5}
+            >
+              <Plus className="h-4 w-4" /> Add Tweet
+            </Button>
           </Card>
         )}
 
@@ -214,8 +421,11 @@ export default function TwitterPostsPage() {
             {tweetType === "standard" ? (
               // Single tweet preview
               <TweetCard
-                post={{ caption: tweet || "Your tweet will appear here" }}
-                user={{ full_name: "Demo User", username: "demouser", avatar_url: "/default-avatar.png" }}
+                post={{
+                  caption: tweet || "Your tweet will appear here",
+                  image_url: imagePreview || undefined,
+                }}
+                user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
               />
             ) : (
               // Thread preview
@@ -224,8 +434,11 @@ export default function TwitterPostsPage() {
                   <div key={tweetItem.id} className="relative">
                     {index > 0 && <div className="absolute left-5 top-0 w-0.5 h-4 bg-gray-200 -mt-1"></div>}
                     <TweetCard
-                      post={{ caption: tweetItem.content || `Tweet ${index + 1} will appear here` }}
-                      user={{ full_name: "Demo User", username: "demouser", avatar_url: "/default-avatar.png" }}
+                      post={{
+                        caption: tweetItem.content || `Tweet ${index + 1} will appear here`,
+                        image_url: index === 0 ? imagePreview || undefined : undefined,
+                      }}
+                      user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
                     />
                     {index < tweetThread.length - 1 && (
                       <div className="absolute left-5 bottom-0 w-0.5 h-4 bg-gray-200 -mb-1"></div>
@@ -250,8 +463,11 @@ export default function TwitterPostsPage() {
               {tweetType === "standard" && typeof suggestion === "string" ? (
                 // Single tweet suggestion
                 <TweetCard
-                  post={{ caption: suggestion }}
-                  user={{ full_name: "Demo User", username: "demouser", avatar_url: "/default-avatar.png" }}
+                  post={{
+                    caption: suggestion,
+                    image_url: imagePreview || undefined,
+                  }}
+                  user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
                 />
               ) : (
                 Array.isArray(suggestion) && (
@@ -261,8 +477,11 @@ export default function TwitterPostsPage() {
                       <div key={index} className="relative">
                         {index > 0 && <div className="absolute left-5 top-0 w-0.5 h-4 bg-gray-200 -mt-1"></div>}
                         <TweetCard
-                          post={{ caption: tweetContent }}
-                          user={{ full_name: "Demo User", username: "demouser", avatar_url: "/default-avatar.png" }}
+                          post={{
+                            caption: tweetContent,
+                            image_url: index === 0 ? imagePreview || undefined : undefined,
+                          }}
+                          user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
                         />
                         {index < suggestion.length - 1 && (
                           <div className="absolute left-5 bottom-0 w-0.5 h-4 bg-gray-200 -mb-1"></div>
@@ -277,14 +496,19 @@ export default function TwitterPostsPage() {
         )}
 
         {/* Error Message */}
-        {error && <Card className="p-4 mb-6 bg-red-50 border border-red-200 rounded-lg text-red-600 shadow-sm">{error}</Card>}
+        {error && (
+          <Card className="p-4 mb-6 bg-red-50 border border-red-200 rounded-lg text-red-600 shadow-sm">{error}</Card>
+        )}
 
         {/* Thread Editor - Only show in thread mode */}
         {tweetType === "thread" && (
           <div className="mb-6 space-y-4">
             <h2 className="text-sm font-medium text-muted-foreground">Thread Editor</h2>
             {tweetThread.map((tweetItem, index) => (
-              <Card key={tweetItem.id} className="flex gap-2 items-start p-3 border border-gray-200/70 bg-white/80 shadow-sm">
+              <Card
+                key={tweetItem.id}
+                className="flex gap-2 items-start p-3 border border-gray-200/70 bg-white/80 shadow-sm"
+              >
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
                   {index + 1}
                 </div>
@@ -318,136 +542,198 @@ export default function TwitterPostsPage() {
         )}
       </div>
 
-      {/* Bottom Creation Toolbar (refined, compact, modern) */}
-      <div className="fixed bottom-0 left-0 right-0 w-full z-50 px-2 pb-2 sm:pb-4 sm:left-[130px] sm:right-0 sm:bottom-4 sm:px-0">
-        <div className="bg-white/70 backdrop-blur-lg border rounded-t-lg sm:rounded-lg border-gray-200/50 p-1.5 max-w-2xl mx-auto shadow-lg flex flex-row items-center gap-2">
-          {/* Brand Kit Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1.5 rounded-full text-xs bg-white/40 backdrop-blur-sm min-w-[90px] px-2 h-8"
-              >
-                <Palette className="w-4 h-4" />
-                <span className="truncate">{validBrandKits.find((bk) => bk.id === selectedBrandKit)?.name || "Brand Kit"}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {validBrandKits.length > 0 ? (
-                validBrandKits.map((brandKit) => (
-                  <DropdownMenuItem key={brandKit.id} onSelect={() => setSelectedBrandKit(brandKit.id)}>
-                    {brandKit.name}
-                  </DropdownMenuItem>
-                ))
-              ) : (
-                <DropdownMenuItem asChild>
-                  <Link href="/brand-kit">Create Brand Kit</Link>
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {/* Tweet Type Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1.5 rounded-full text-xs bg-white/40 backdrop-blur-sm min-w-[90px] px-2 h-8"
-              >
-                <Type className="w-4 h-4" />
-                <span className="truncate">{TWEET_TYPES.find((t) => t.value === tweetType)?.label || "Regular Tweet"}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {TWEET_TYPES.map((type) => (
-                <DropdownMenuItem
-                  key={type.value}
-                  onSelect={() => handleTweetTypeChange(type.value)}
-                  disabled={type.disabled === true}
+      {/* Hidden file input for image upload */}
+      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+
+      {/* Bottom Creation Toolbar - Redesigned for better visibility and usability */}
+      <div className="fixed bottom-0 bg-white/70 backdrop-blur-lg border rounded-t-lg sm:rounded-lg border-gray-200/50   mx-auto left-0 right-0 max-w-2xl z-50 px-2 pb-2 sm:pb-4 sm:left-[250px] sm:right-0 sm:bottom-4 sm:px-0">
+        <div className="max-w-2xl mx-auto px-4 mt-3 left-[120px]">
+          {/* Top row with dropdowns */}
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            {/* Brand Kit Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5 rounded-full text-xs bg-white/40 backdrop-blur-sm min-w-[90px] px-2 h-8"
                 >
-                  {type.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {/* Style Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1.5 rounded-full text-xs bg-white/40 backdrop-blur-sm min-w-[90px] px-2 h-8"
-              >
-                <Palette className="w-4 h-4" />
-                <span className="truncate">Style</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {STYLES.map((s) => (
-                <DropdownMenuItem key={s} onSelect={() => setStyle(s)}>
-                  {s}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {/* Mood Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1.5 rounded-full text-xs bg-white/40 backdrop-blur-sm min-w-[90px] px-2 h-8"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span className="truncate">Mood</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {MOODS.map((m) => (
-                <DropdownMenuItem key={m} onSelect={() => setMood(m)}>
-                  {m}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {/* Text Input & AI Button (for both standard and thread tweet types) */}
-          {(tweetType === "standard" || tweetType === "thread") && (
-            <div className="flex flex-row items-center flex-1 min-w-[200px] max-w-[600px] gap-2">
+                  <Palette className="w-4 h-4" />
+                  <span className="truncate">
+                    {validBrandKits.find((bk) => bk.id === selectedBrandKit)?.name || "Brand Kit"}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {validBrandKits.length > 0 ? (
+                  validBrandKits.map((brandKit) => (
+                    <DropdownMenuItem key={brandKit.id} onSelect={() => {
+                      setSelectedBrandKit(brandKit.id);
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("selectedBrandKitId", brandKit.id);
+                      }
+                    }}>
+                      {brandKit.name}
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href="/brand-kit">Create Brand Kit</Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Tweet Type Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5 rounded-full text-xs bg-white/40 backdrop-blur-sm min-w-[90px] px-2 h-8"
+                >
+                  <Type className="w-4 h-4" />
+                  <span className="truncate">
+                    {TWEET_TYPES.find((t) => t.value === tweetType)?.label || "Regular Tweet"}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {TWEET_TYPES.map((type) => (
+                  <DropdownMenuItem
+                    key={type.value}
+                    onSelect={() => handleTweetTypeChange(type.value)}
+                    disabled={type.disabled === true}
+                  >
+                    {type.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Style Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5 rounded-full text-xs bg-white/40 backdrop-blur-sm min-w-[90px] px-2 h-8"
+                >
+                  <Palette className="w-4 h-4" />
+                  <span className="truncate">{style}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {STYLES.map((s) => (
+                  <DropdownMenuItem key={s} onSelect={() => setStyle(s)}>
+                    {s}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Mood Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5 rounded-full text-xs bg-white/40 backdrop-blur-sm min-w-[90px] px-2 h-8"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span className="truncate">{mood}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {MOODS.map((m) => (
+                  <DropdownMenuItem key={m} onSelect={() => setMood(m)}>
+                    {m}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Image preview area (if image is uploaded) */}
+          
+
+          {/* Text input area with buttons */}
+          <div className="flex flex-col">
+            <div className="relative">
               <Textarea
                 value={tweetType === "standard" ? tweet : tweetThread[0].content}
-                onChange={e => {
+                onChange={(e) => {
                   if (tweetType === "standard") setTweet(e.target.value)
                   else updateThreadTweet(tweetThread[0].id, e.target.value)
                 }}
+                onFocus={() => setTextareaFocused(true)}
+                onBlur={() => setTextareaFocused(false)}
                 maxLength={280}
-                rows={1}
-                className="w-full px-3 py-2 text-base border rounded-lg border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary bg-[#f7f9fa] resize-none min-h-[40px] max-h-[60px]"
+                rows={textareaFocused ? 3 : 2}
+                className="w-full px-3 py-2 text-base border rounded-lg border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary bg-white resize-none"
                 placeholder="What's happening?"
-                style={{ minWidth: 0 }}
               />
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      onClick={handleGenerate}
-                      disabled={loading || (tweetType === "standard" ? !tweet : !tweetThread[0].content)}
-                      className="flex items-center gap-2 rounded-full h-9 px-4 bg-primary text-white shadow-md whitespace-nowrap"
-                    >
-                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      {loading ? "Generating..." : "AI Suggestion"}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Generate an AI-powered tweet suggestion{tweetType === "thread" ? " for your thread" : ""}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Button size="sm" variant="ghost" onClick={handleClear} className="h-8 px-2 ml-1">
-                Clear
-              </Button>
+
+              <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                <span
+                  className={`text-xs ${
+                    (tweetType === "standard" ? tweet.length : tweetThread[0].content.length) > 260
+                      ? "text-red-500"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {tweetType === "standard" ? tweet.length : tweetThread[0].content.length}/280
+                </span>
+              </div>
             </div>
-          )}
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-between mt-3">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 rounded-full p-0 border border-gray-200 "
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImageIcon className="h-5 w-5 " />
+                </Button>
+
+                <Button variant="ghost" size="sm" onClick={handleClear} className="h-9 px-3 text-gray-500">
+                  Clear
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleGenerate}
+                        disabled={loading || (tweetType === "standard" ? !tweet : !tweetThread[0].content)}
+                        className="flex items-center gap-2 rounded-full h-9 px-4 bg-primary text-white"
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        {loading ? "Generating..." : "AI Suggestion"}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Generate an AI-powered tweet suggestion{tweetType === "thread" ? " for your thread" : ""}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="h-9 w-9 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                  disabled={tweetType === "standard" ? !tweet : !tweetThread[0].content}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

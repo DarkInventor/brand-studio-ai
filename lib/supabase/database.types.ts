@@ -117,6 +117,8 @@ export interface Database {
           aspect_ratio: string | null
           quality: string | null
           platform: string // 'instagram' | 'twitter' | 'linkedin' | etc.
+          tweet_post: string | null
+          tweet_thread: string | null // store as JSON string
         }
         Insert: {
           id?: string
@@ -134,6 +136,8 @@ export interface Database {
           aspect_ratio?: string | null
           quality?: string | null
           platform: string // 'instagram' | 'twitter' | 'linkedin' | etc.
+          tweet_post?: string | null
+          tweet_thread?: string | null
         }
         Update: {
           id?: string
@@ -151,6 +155,8 @@ export interface Database {
           aspect_ratio?: string | null
           quality?: string | null
           platform?: string // 'instagram' | 'twitter' | 'linkedin' | etc.
+          tweet_post?: string | null
+          tweet_thread?: string | null
         }
       }
       scheduled_posts: {
