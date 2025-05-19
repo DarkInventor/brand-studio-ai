@@ -32,6 +32,16 @@ const navItems = [
         // comingSoon: true,
       },
       {
+        title: "Twitter Posts",
+        href: "/dashboard/twitter-posts",
+        // comingSoon: true,
+      },
+      {
+        title: "LinkedIn Posts",
+        href: "/dashboard/linkedin-posts",
+        // comingSoon: true,
+      },
+      {
         title: "Commercial Ads",
         href: "/dashboard/commercial-ads",
         comingSoon: true,
