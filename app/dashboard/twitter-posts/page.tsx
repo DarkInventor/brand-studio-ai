@@ -41,13 +41,14 @@ function isValidBrandKit(obj: any): obj is { id: string; name: string } {
 }
 
 // Type guard for post
-function isValidPost(obj: any): obj is { id: string; tweet_post: string | null; tweet_thread: string | null } {
+function isValidPost(obj: any): obj is { id: string; tweet_post: string | null; tweet_thread: string | null; image_url: string } {
   return (
     obj &&
     typeof obj === 'object' &&
     typeof obj.id === 'string' &&
     'tweet_post' in obj &&
-    'tweet_thread' in obj
+    'tweet_thread' in obj &&
+    typeof obj.image_url === 'string'
   );
 }
 
@@ -258,7 +259,7 @@ export default function TwitterPostsPage() {
     let imageUrl = "";
     if (imagePreview && imagePreview.startsWith("data:image/")) {
       // Upload to R2 via API route
-      const res = await fetch("/api/upload-image", {
+      const res = await fetch("/api/tweet-image-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageDataUrl: imagePreview, userId }),
