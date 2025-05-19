@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { getBrandKits } from "@/lib/actions/brand-kits"
 import { createClient } from "@/lib/supabase/client"
+import type { Json } from "@/lib/supabase/database.types"
 
 // Constants for dropdown options
 const TWEET_TYPES = [
@@ -41,7 +42,7 @@ function isValidBrandKit(obj: any): obj is { id: string; name: string } {
 }
 
 // Type guard for post
-function isValidPost(obj: any): obj is { id: string; tweet_post: string | null; tweet_thread: string | null; image_url: string } {
+function isValidPost(obj: any): obj is { id: string; tweet_post: string | null; tweet_thread: string | null; image_url: string; tweet_thread_images?: Json | null } {
   return (
     obj &&
     typeof obj === 'object' &&
@@ -57,7 +58,7 @@ export default function TwitterPostsPage() {
   const [tweet, setTweet] = useState("")
 
   // For image upload
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [threadImages, setThreadImages] = useState<(string | null)[]>([null])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // For thread mode
@@ -182,22 +183,35 @@ export default function TwitterPostsPage() {
   }
 
   // Handle image upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, idx?: number) => {
     const file = e.target.files?.[0]
     if (file) {
       const reader = new FileReader()
       reader.onload = (event) => {
-        setImagePreview(event.target?.result as string)
+        if (tweetType === "thread" && typeof idx === "number") {
+          setThreadImages((prev) => {
+            const arr = [...prev]
+            arr[idx] = event.target?.result as string
+            return arr
+          })
+        } else {
+          setThreadImages([event.target?.result as string])
+        }
       }
       reader.readAsDataURL(file)
     }
   }
 
   // Remove uploaded image
-  const removeImage = () => {
-    setImagePreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
+  const removeImage = (idx?: number) => {
+    if (tweetType === "thread" && typeof idx === "number") {
+      setThreadImages((prev) => {
+        const arr = [...prev]
+        arr[idx] = null
+        return arr
+      })
+    } else {
+      setThreadImages([null])
     }
   }
 
@@ -213,7 +227,7 @@ export default function TwitterPostsPage() {
         style,
         mood,
         tweetType,
-        hasImage: !!imagePreview,
+        hasImage: !!threadImages[0],
       }
 
       // Add appropriate content based on tweet type
@@ -257,15 +271,31 @@ export default function TwitterPostsPage() {
   async function saveToSupabase({ tweetText, threadArray }: { tweetText?: string, threadArray?: string[] }) {
     if (!userId || !selectedBrandKit) return;
     let imageUrl = "";
-    if (imagePreview && imagePreview.startsWith("data:image/")) {
-      // Upload to R2 via API route
+    let threadImageUrls: string[] = [];
+    if (tweetType === "thread" && Array.isArray(threadImages)) {
+      for (let i = 0; i < tweetThread.length; i++) {
+        const img = threadImages[i];
+        if (img && img.startsWith("data:image/")) {
+          const res = await fetch("/api/tweet-image-upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageDataUrl: img, userId }),
+          });
+          const data = await res.json();
+          threadImageUrls[i] = data.url || "";
+        } else {
+          threadImageUrls[i] = "";
+        }
+      }
+    } else if (threadImages[0] && threadImages[0].startsWith("data:image/")) {
+      // Single tweet
       const res = await fetch("/api/tweet-image-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl: imagePreview, userId }),
+        body: JSON.stringify({ imageDataUrl: threadImages[0], userId }),
       });
       const data = await res.json();
-      if (data.url) imageUrl = data.url;
+      imageUrl = data.url || "";
     }
     const supabase = createClient();
     let insertObj: any = {
@@ -278,6 +308,7 @@ export default function TwitterPostsPage() {
       platform: "twitter",
       tweet_post: tweetText || null,
       tweet_thread: threadArray ? JSON.stringify(threadArray) : null,
+      tweet_thread_images: threadImageUrls.length > 0 ? threadImageUrls : null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -313,7 +344,7 @@ export default function TwitterPostsPage() {
       setTweetThread([{ id: "1", content: "" }])
     }
     setSuggestion("")
-    setImagePreview(null)
+    setThreadImages([null])
   }
 
   // Delete post from Supabase and local state
@@ -330,6 +361,23 @@ export default function TwitterPostsPage() {
     }
     setDeletingPostId(null);
   }
+
+  // In thread mode, update threadImages when adding/removing tweets
+  useEffect(() => {
+    if (tweetType === "thread") {
+      setThreadImages((prev) => {
+        if (tweetThread.length > prev.length) {
+          // Add new image slot(s)
+          return [...prev, ...Array(tweetThread.length - prev.length).fill(null)];
+        } else if (tweetThread.length < prev.length) {
+          // Remove extra image slots
+          return prev.slice(0, tweetThread.length);
+        }
+        return prev;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tweetThread.length, tweetType]);
 
   return (
     <div className="min-h-screen pb-32 sm:pb-40 bg-[#f7f9fa]">
@@ -380,13 +428,18 @@ export default function TwitterPostsPage() {
               )}
               {post.tweet_thread && (
                 <div className="space-y-1">
-                  {JSON.parse(post.tweet_thread).map((tweet: string, idx: number) => (
-                    <TweetCard
-                      key={idx}
-                      post={{ caption: tweet, image_url: post.image_url }}
-                      user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
-                    />
-                  ))}
+                  {(() => {
+                    const threadImagesArr: string[] = Array.isArray(post.tweet_thread_images)
+                      ? post.tweet_thread_images.filter((x: any) => typeof x === 'string')
+                      : [];
+                    return JSON.parse(post.tweet_thread).map((tweet: string, idx: number) => (
+                      <TweetCard
+                        key={idx}
+                        post={{ caption: tweet, image_url: threadImagesArr[idx] || "" }}
+                        user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
+                      />
+                    ));
+                  })()}
                 </div>
               )}
             </Card>
@@ -434,7 +487,7 @@ export default function TwitterPostsPage() {
               <TweetCard
                 post={{
                   caption: tweet || "Your tweet will appear here",
-                  image_url: imagePreview || undefined,
+                  image_url: threadImages[0] || undefined,
                 }}
                 user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
               />
@@ -447,7 +500,7 @@ export default function TwitterPostsPage() {
                     <TweetCard
                       post={{
                         caption: tweetItem.content || `Tweet ${index + 1} will appear here`,
-                        image_url: index === 0 ? imagePreview || undefined : undefined,
+                        image_url: index === 0 ? threadImages[0] || undefined : undefined,
                       }}
                       user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
                     />
@@ -476,7 +529,7 @@ export default function TwitterPostsPage() {
                 <TweetCard
                   post={{
                     caption: suggestion,
-                    image_url: imagePreview || undefined,
+                    image_url: threadImages[0] || undefined,
                   }}
                   user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
                 />
@@ -490,7 +543,7 @@ export default function TwitterPostsPage() {
                         <TweetCard
                           post={{
                             caption: tweetContent,
-                            image_url: index === 0 ? imagePreview || undefined : undefined,
+                            image_url: index === 0 ? threadImages[0] || undefined : undefined,
                           }}
                           user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
                         />
@@ -531,6 +584,40 @@ export default function TwitterPostsPage() {
                     className="resize-none"
                     rows={2}
                   />
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full border border-gray-200"
+                      onClick={() => document.getElementById(`thread-image-upload-${index}`)?.click()}
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                    </Button>
+                    {threadImages[index] && (
+                      <div className="relative">
+                        <img
+                          src={threadImages[index] || "/placeholder.svg"}
+                          alt="Preview"
+                          className="h-12 w-12 object-cover rounded-md border"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6 text-red-500"
+                          onClick={() => removeImage(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      id={`thread-image-upload-${index}`}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, index)}
+                    />
+                  </div>
                   <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
                     <span className={tweetItem.content.length > 260 ? "text-red-500" : ""}>
                       {tweetItem.content.length}/280

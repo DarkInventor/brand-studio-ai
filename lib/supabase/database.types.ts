@@ -119,6 +119,7 @@ export interface Database {
           platform: string // 'instagram' | 'twitter' | 'linkedin' | etc.
           tweet_post: string | null
           tweet_thread: string | null // store as JSON string
+          tweet_thread_images?: Json | null
         }
         Insert: {
           id?: string
@@ -138,6 +139,7 @@ export interface Database {
           platform: string // 'instagram' | 'twitter' | 'linkedin' | etc.
           tweet_post?: string | null
           tweet_thread?: string | null
+          tweet_thread_images?: Json | null
         }
         Update: {
           id?: string
@@ -157,6 +159,7 @@ export interface Database {
           platform?: string // 'instagram' | 'twitter' | 'linkedin' | etc.
           tweet_post?: string | null
           tweet_thread?: string | null
+          tweet_thread_images?: Json | null
         }
       }
       scheduled_posts: {
