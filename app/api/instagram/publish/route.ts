@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   const { postId, brandKitId } = await req.json();
@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing postId or brandKitId" }, { status: 400 });
   }
 
-  const supabase = createClient();
+  const supabase = createServerClient();
 
   // Get brand kit Instagram info
   const { data: kit } = await supabase
