@@ -820,7 +820,7 @@ export default function TwitterPostsPage() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-
+{/* 
                 <Button
                   variant="default"
                   size="icon"
@@ -828,7 +828,7 @@ export default function TwitterPostsPage() {
                   disabled={tweetType === "standard" ? !tweet : !tweetThread[0].content}
                 >
                   <Send className="h-4 w-4" />
-                </Button>
+                </Button> */}
               </div>
             </div>
           </div>
