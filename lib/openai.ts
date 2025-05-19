@@ -227,92 +227,60 @@ export async function addLogoToBottomRight(imageBuffer: Buffer, logoUrl: string,
  * @param postType - The type of post (regular, educational, personal, inspirational, product, promo)
  * @param postTypeData - Data specific to the post type
  * @param imageContext - Optional context about the image to help generate a better caption
+ * @param platform - The platform for which the caption is being generated
  * @returns A generated caption for the image
  */
 export async function generateCaption(
   brandKit: any, 
   postType?: string, 
   postTypeData?: PostTypeData, 
-  imageContext?: string
+  imageContext?: string,
+  platform: string = 'instagram'
 ) {
   try {
-    console.log("Generating caption for brand:", brandKit.name, "Post type:", postType)
+    console.log("Generating caption for brand:", brandKit.name, "Post type:", postType, "Platform:", platform)
 
-    // Create a detailed system prompt for better caption generation
-    const systemPrompt = `You are a creative marketing copywriter specialized in storytelling and writing compelling brand Instagram captions.
-    You craft concise, engaging, and brand-aligned copy that drives audience action.
-    Your captions are always:
-    - In English
-    - Authentic to the brand voice
-    - Relevant to the image content
-    - Concise and impactful
-    - Avoid using marketing buzzwords
-    - Strategically using hashtags and emojis
-    - Including a clear call-to-action`
+    // Platform-specific system prompt
+    let systemPrompt = '';
+    let userPrompt = '';
+    if (platform === 'twitter' || platform === 'x') {
+      systemPrompt = `You are a creative social media copywriter specialized in writing concise, engaging, and brand-aligned Twitter (X) posts. Your posts are always:\n- In English\n- Authentic to the brand voice\n- Relevant to the image content\n- Concise (max 280 characters)\n- Use strategic hashtags and emojis\n- Include a clear call-to-action`;
+      userPrompt = `Generate a catchy Twitter (X) post for a brand.\n\nBrand Details:\n- Name: ${brandKit.name}\n- Description: ${brandKit.description || "No description provided"}\n- Brand Voice/Tone: ${brandKit.brand_tone || "Professional"}\n- Primary Color: ${brandKit.primary_color || "#000000"}\n- Secondary Color: ${brandKit.secondary_color || "#FFFFFF"}\n${brandKit.logo_url ? `- Brand logo is available.` : `- No brand logo provided.`}\n\nImage Context: ${imageContext || "An advertisement image for the brand"}`;
+      userPrompt += `\n\nIMPORTANT: The post must be 280 characters or less. Use a tone consistent with the brand. Use 2-3 relevant hashtags and appropriate emojis. Avoid marketing buzzwords. Format for Twitter.`;
+    } else if (platform === 'linkedin') {
+      systemPrompt = `You are a professional copywriter specialized in writing LinkedIn posts for brands. Your posts are always:\n- In English\n- Professional and business-oriented\n- Authentic to the brand voice\n- Relevant to the image content\n- Insightful and value-driven\n- Use hashtags sparingly and appropriately\n- Include a call-to-action suitable for a business audience`;
+      userPrompt = `Generate a LinkedIn post for a brand.\n\nBrand Details:\n- Name: ${brandKit.name}\n- Description: ${brandKit.description || "No description provided"}\n- Brand Voice/Tone: ${brandKit.brand_tone || "Professional"}\n- Primary Color: ${brandKit.primary_color || "#000000"}\n- Secondary Color: ${brandKit.secondary_color || "#FFFFFF"}\n${brandKit.logo_url ? `- Brand logo is available.` : `- No brand logo provided.`}\n\nImage Context: ${imageContext || "A business-related image for the brand"}`;
+      userPrompt += `\n\nIMPORTANT: The post should be professional, value-driven, and suitable for LinkedIn. Use a business tone, avoid marketing buzzwords, and include a relevant call-to-action. Use 1-2 hashtags if appropriate.`;
+    } else {
+      // Default: Instagram
+      systemPrompt = `You are a creative marketing copywriter specialized in storytelling and writing compelling brand Instagram captions.\nYou craft concise, engaging, and brand-aligned copy that drives audience action.\nYour captions are always:\n- In English\n- Authentic to the brand voice\n- Relevant to the image content\n- Concise and impactful\n- Avoid using marketing buzzwords\n- Strategically using hashtags and emojis\n- Including a clear call-to-action`;
+      userPrompt = `Generate a catchy Instagram caption for a post featuring ${brandKit.name}.\n\nBrand Details:\n- Name: ${brandKit.name}\n- Description: ${brandKit.description || "No description provided"}\n- Brand Voice/Tone: ${brandKit.brand_tone || "Professional"}\n- Primary Color: ${brandKit.primary_color || "#000000"}\n- Secondary Color: ${brandKit.secondary_color || "#FFFFFF"}\n${brandKit.logo_url ? `- Brand logo is available.` : `- No brand logo provided.`}\n\nImage Context: ${imageContext || "An advertisement image for the brand"}`;
+      userPrompt += `\n\nUse the brand tone: (${brandKit.brand_tone || "normal"})\nRelate directly to what's shown in the image\nAvoid using marketing buzzwords\nInclude a clear call-to-action that encourages audience engagement\nFeature 3-5 relevant and strategic hashtags that go viral on Instagram\nUse emojis appropriately to match the brand's tone\n\nFormat the caption with line breaks for readability.\n\nIMPORTANT: CAPTION MUST NOT LOOK LIKE MARKETING COPY. AVOID USING MARKETING BUZZ WORDS. KEEP THE TONE OF THE CAPTION CONSISTENT WITH THE BRAND'S TONE.\nCRITICAL: The caption MUST be in ENGLISH ONLY.`;
+    }
 
-    // Base user prompt
-    let userPrompt = `
-      Generate a catchy Instagram caption for a post featuring ${brandKit.name}.
-      
-      Brand Details:
-      - Name: ${brandKit.name}
-      - Description: ${brandKit.description || "No description provided"}
-      - Brand Voice/Tone: ${brandKit.brand_tone || "Professional"}
-      - Primary Color: ${brandKit.primary_color || "#000000"}
-      - Secondary Color: ${brandKit.secondary_color || "#FFFFFF"}
-      ${brandKit.logo_url ? `- Brand logo is available.` : `- No brand logo provided.`}
-      
-      Image Context: ${imageContext || "An advertisement image for the brand"}
-    `;
-    
     // Add post type specific instructions
     if (postType) {
       userPrompt += `\n\nPost Type: ${postType}`;
-      
       if (postType === "educational" && postTypeData?.topic) {
-        userPrompt += `\nThis is an educational post about: "${postTypeData.topic}".
-        The caption should share valuable information or insights, position the brand as an authority,
-        and encourage discussion or sharing of the educational content.`;
+        userPrompt += `\nThis is an educational post about: \"${postTypeData.topic}\".\nThe caption should share valuable information or insights, position the brand as an authority,\nand encourage discussion or sharing of the educational content.`;
       }
       else if (postType === "inspirational" && postTypeData?.quote) {
-        userPrompt += `\nCreate an inspirational quote instagram image featuring the quote: "${postTypeData.quote}".
-        The caption should build on this inspirational message, connect it to the brand's values,
-        and encourage followers to reflect or share their thoughts. Make sure it looks like thos instagram quote images. its a quote so make sure its surrounded by double quotes for text.`;
+        userPrompt += `\nCreate an inspirational quote image featuring the quote: \"${postTypeData.quote}\".\nThe caption should build on this inspirational message, connect it to the brand's values,\nand encourage followers to reflect or share their thoughts.`;
       }
       else if (postType === "product" && postTypeData?.product) {
-        userPrompt += `\nThis is a product showcase post featuring: "${postTypeData.product}".
-        The caption should highlight key benefits or features, create desire,
-        and include a clear call-to-action related to the product.`;
+        userPrompt += `\nThis is a product showcase post featuring: \"${postTypeData.product}\".\nThe caption should highlight key benefits or features, create desire,\nand include a clear call-to-action related to the product.`;
       }
       else if (postType === "promo" && postTypeData?.announcement) {
-        userPrompt += `\nThis is a promotional post announcing: "${postTypeData.announcement}".
-        The caption should create urgency, explain the value of the promotion,
-        and include a strong call-to-action with clear next steps.`;
+        userPrompt += `\nThis is a promotional post announcing: \"${postTypeData.announcement}\".\nThe caption should create urgency, explain the value of the promotion,\nand include a strong call-to-action with clear next steps.`;
       }
       else if (postType === "personal" && postTypeData?.photoDesc) {
-        userPrompt += `\nThis is a personal/behind-the-scenes post showing: "${postTypeData.photoDesc}".
-        The caption should tell an authentic story, create a connection with the audience,
-        and show the human side of the brand.`;
+        userPrompt += `\nThis is a personal/behind-the-scenes post showing: \"${postTypeData.photoDesc}\".\nThe caption should tell an authentic story, create a connection with the audience,\nand show the human side of the brand.`;
       }
     }
-    
-    userPrompt += `
-      
-      Use the brand tone: (${brandKit.brand_tone || "normal"})
-      Relate directly to what's shown in the image
-      Avoid using marketing buzzwords
-      Include a clear call-to-action that encourages audience engagement
-      Feature 3-5 relevant and strategic hashtags that go viral on Instagram
-      Use emojis appropriately to match the brand's tone
-      
-      Format the caption with line breaks for readability.
-
-      IMPORTANT: CAPTION MUST NOT LOOK LIKE MARKETING COPY. AVOID USING MARKETING BUZZ WORDS. KEEP THE TONE OF THE CAPTION CONSISTENT WITH THE BRAND'S TONE.
-      CRITICAL: The caption MUST be in ENGLISH ONLY.`;
 
     // Generate the caption using OpenAI
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // You can use any appropriate model here
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

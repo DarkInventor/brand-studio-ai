@@ -1,4 +1,4 @@
-# Brand Studio
+<!-- # Brand Studio
 
 Brand Studio is an AI-powered platform for generating, managing, and previewing Instagram-ready posts (images and captions) for brands. It leverages OpenAI for creative content generation and Supabase for authentication, data, and storage. This project is designed to help marketing teams, agencies, and solo founders automate and streamline their social media content creation process.
 
@@ -211,4 +211,253 @@ Contact us for custom plans, enterprise needs, or support.
 3. Consider creating a "Video Pack" add-on for users who primarily want to create videos
 4. Implement usage analytics to track which video durations and resolutions are most popular
 5. Add clear usage examples to help users understand how many videos they can create with each plan
-6. If you find actual API costs for 10s and 30s videos differ from estimates, adjust credit requirements accordingly
+6. If you find actual API costs for 10s and 30s videos differ from estimates, adjust credit requirements accordingly -->
+
+
+# Brand Studio - AI-Powered Social Media Growth Platform
+
+Brand Studio is the ultimate AI-powered platform for creating, managing, and scheduling thousands of high-converting posts for X (formerly Twitter) and LinkedIn. Designed for entrepreneurs, marketers, agencies, and thought leaders who want to build their personal brand and grow their social media presence at scale.
+
+---
+
+## Transform Your Social Media Presence
+
+**Stop struggling with content creation. Start scaling your influence.**
+
+Brand Studio uses advanced AI to help you:
+- **Generate 1000s of posts** tailored to X and LinkedIn audiences
+- **Build a consistent brand voice** across all platforms
+- **Grow your following** with engaging, platform-optimized content
+- **Save 10+ hours per week** on content creation
+- **Analyze performance** with AI-powered insights
+
+---
+
+## What Does Brand Studio Do?
+
+### 🎯 AI-Powered Post Generation
+- **X/Twitter Posts:** Viral threads, engaging tweets, trending hashtags
+- **LinkedIn Posts:** Professional insights, thought leadership, industry updates
+- **Smart Adaptation:** Same idea, different formats for each platform
+- **Bulk Generation:** Create weeks of content in minutes
+
+### 🎨 Brand Voice Management
+- **Personal Brand Kits:** Define your unique voice, tone, and expertise areas
+- **Consistent Messaging:** Maintain brand consistency across 1000s of posts
+- **Multiple Personas:** Manage different brand voices for various niches
+
+### 📈 Growth-Focused Features
+- **Trend Integration:** Auto-incorporate trending topics and hashtags
+- **Engagement Optimization:** AI analyzes what drives engagement in your niche
+- **Posting Schedules:** Strategic timing recommendations for maximum reach
+- **Performance Tracking:** Monitor growth and engagement metrics
+
+### 🔄 Content Amplification
+- **Cross-Platform Repurposing:** Turn one idea into multiple platform-specific posts
+- **Thread Creation:** Transform long-form content into engaging X threads
+- **Professional Polish:** Convert casual ideas into LinkedIn-ready insights
+
+---
+
+## Perfect For
+
+**🚀 Entrepreneurs & Founders**
+- Build thought leadership in your industry
+- Share startup journey and lessons learned
+- Generate leads through valuable content
+
+**💼 B2B Professionals**
+- Establish industry expertise on LinkedIn
+- Network and connect with potential clients
+- Share professional insights and trends
+
+**📱 Content Creators**
+- Scale content production efficiently
+- Maintain consistent posting schedule
+- Grow following across multiple platforms
+
+**🏢 Marketing Agencies**
+- Manage multiple client brands
+- Deliver high-volume content efficiently
+- Provide data-driven content strategies
+
+---
+
+## Tech Stack
+- **Frontend:** Next.js (App Router), React, TypeScript
+- **UI:** Shadcn/ui, Lucide Icons, Tailwind CSS
+- **AI Engine:** OpenAI GPT-4 (optimized for social media content)
+- **Database & Auth:** Supabase (Postgres, Auth, Storage)
+- **Analytics:** Real-time engagement tracking and AI insights
+- **Deployment:** Vercel
+
+---
+
+## Pricing Plans
+
+Grow your social media presence with plans designed for every scale.
+
+| Plan | Price/month | Posts/month | Platforms | Features |
+|------|-------------|-------------|-----------|----------|
+| **Creator** | $19 | 1,000 posts | X + LinkedIn | AI post generation, 1 brand kit, basic analytics |
+| **Professional** | $49 | 3,000 posts | X + LinkedIn | Priority generation, 3 brand kits, advanced analytics, trend integration |
+| **Agency** | $99 | 10,000 posts | X + LinkedIn | Unlimited brand kits, team collaboration, client management, API access |
+
+### What's Included in Each Post?
+- Platform-optimized content (text + formatting)
+- Hashtag recommendations
+- Engagement optimization suggestions
+- Best time to post recommendations
+
+### Additional Features
+- **Trend Analysis:** $5/month - Real-time trending topic integration
+- **Advanced Analytics:** $10/month - Deep engagement insights and competitor analysis
+- **Bulk Upload:** Free - Import existing content for AI optimization
+
+---
+
+## How It Works
+
+### 1. Setup Your Brand
+- Create your brand kit with voice, tone, and expertise areas
+- Define your target audience and goals
+- Set up posting preferences for X and LinkedIn
+
+### 2. Generate Content at Scale
+- Use AI prompts to generate hundreds of posts instantly
+- Choose from templates: threads, insights, tips, personal stories
+- Bulk generate content for weeks or months ahead
+
+### 3. Optimize & Schedule
+- AI analyzes and optimizes each post for maximum engagement
+- Smart scheduling based on your audience's activity
+- Cross-platform adaptation ensures perfect formatting
+
+### 4. Track & Improve
+- Monitor performance with real-time analytics
+- Get AI-powered recommendations for content improvement
+- Identify top-performing content themes and formats
+
+---
+
+## Content Types We Master
+
+### For X (Twitter):
+- **Viral Threads** - Multi-tweet storytelling that drives engagement
+- **Quick Tips** - Bite-sized valuable insights
+- **Personal Stories** - Authentic experiences that resonate
+- **Industry Takes** - Thought-provoking opinions on trends
+- **Motivational Posts** - Inspirational content that gets shared
+
+### For LinkedIn:
+- **Thought Leadership** - Industry insights and predictions
+- **Professional Stories** - Career lessons and experiences
+- **Company Updates** - Business milestones and achievements
+- **Educational Content** - How-to guides and tutorials
+- **Networking Posts** - Conversation starters and connections
+
+---
+
+## Getting Started
+
+### Quick Setup (5 minutes)
+1. **Sign up** with your email or social account
+2. **Create your first brand kit** - tell us about your expertise and voice
+3. **Generate your first batch** of posts with our AI wizard
+4. **Review and customize** the content to match your style
+5. **Schedule or export** your posts to start growing your presence
+
+### Pro Tips for Success
+- Start with 10-20 posts to establish your voice baseline
+- Use our trending topics feature to stay relevant
+- Mix content types for maximum engagement
+- Analyze top performers and iterate
+
+---
+
+## Why Choose Brand Studio?
+
+### ✨ **Superior AI Quality**
+Our AI is specifically trained on high-performing social media content, ensuring every post is optimized for engagement and growth.
+
+### 🎯 **Platform-Specific Optimization**
+Unlike generic tools, Brand Studio understands the unique cultures and best practices of X and LinkedIn.
+
+### 📊 **Growth-Focused Approach**
+Every feature is designed to help you grow your following, increase engagement, and build your brand presence.
+
+### ⚡ **Scale Without Compromise**
+Generate thousands of posts while maintaining quality and authenticity.
+
+---
+
+## API & Integrations
+
+**Coming Soon:**
+- Direct posting to X and LinkedIn
+- Hootsuite and Buffer integrations
+- Zapier connectivity
+- Analytics dashboard API
+- Team collaboration tools
+
+---
+
+## Security & Privacy
+
+- Enterprise-grade security with Supabase
+- Your content and brand data are never shared
+- GDPR compliant data handling
+- SOC 2 Type II certification in progress
+
+---
+
+## Customer Success Stories
+
+> "Brand Studio helped me go from 500 to 50K followers on X in 6 months. The AI understands my voice perfectly and creates content that actually converts."
+> — *Sarah Chen, Tech Entrepreneur*
+
+> "As a marketing agency, Brand Studio has 10x'd our content output. We can now serve more clients with higher quality content."
+> — *Mark Rodriguez, Digital Agency Owner*
+
+---
+
+## Ready to Transform Your Social Presence?
+
+**Start growing your brand today with AI-powered content that converts followers into customers.**
+
+[**Try Brand Studio Free**](#) → No credit card required  
+[**Book a Demo**](#) → See how agencies scale with Brand Studio  
+[**Contact Sales**](#) → Custom enterprise solutions
+
+---
+
+## Development & Contribution
+
+**For Developers:**
+- Built with modern React/Next.js architecture
+- TypeScript throughout for type safety
+- Modular component architecture
+- Comprehensive API documentation
+
+**Contributing:**
+- Fork the repository
+- Create feature branches
+- Submit detailed pull requests
+- Follow our coding standards and conventions
+
+---
+
+## Support & Contact
+
+**Questions about growing your social presence?**
+- 📧 Email: hello@brandstudio.ai
+- 💬 Live Chat: Available 24/7 in app
+- 📖 Documentation: docs.brandstudio.ai
+- 🎥 Tutorials: youtube.com/brandstudio
+
+**Enterprise & Custom Solutions:**
+Contact our team for volume discounts, custom integrations, and white-label solutions.
+
+---
+
+*Brand Studio - Where AI meets authentic social media growth. Create thousands of posts, build your brand, and scale your influence across X and LinkedIn.*

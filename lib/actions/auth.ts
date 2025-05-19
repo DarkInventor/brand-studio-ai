@@ -157,6 +157,21 @@ export async function signInWithFacebook() {
   }
 }
 
+export async function signInWithInstagram() {
+  const supabase = createActionClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "facebook",
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/instagram/callback`,
+      scopes: "instagram_basic,pages_show_list,pages_read_engagement,instagram_content_publish"
+    },
+  });
+  if (error) {
+    return { error: error.message };
+  }
+  return { url: data.url };
+}
+
 export async function updateUserProfile(formData: FormData) {
   try {
     const supabase = createActionClient()

@@ -9,7 +9,7 @@ import { Loader2, RefreshCw, Calendar, Package, Edit, Trash2, ImageIcon, ArrowLe
 import { generatePosts, getPosts, deletePost } from "@/lib/actions/posts"
 import { getBrandKits } from "@/lib/actions/brand-kits"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -27,9 +27,20 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ImageOptions } from "@/lib/openai"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { TweetCard } from "@/components/social/TweetCard"
+import { LinkedInPostCard } from "@/components/social/LinkedInPostCard"
+import { LinkedInPostCreator } from "@/components/social/LinkedInPostCreator"
+import { TweetCreator } from "@/components/social/TweetCreator"
+
+// Helper type guard for SelectQueryError
+function isSelectQueryError(obj: any): boolean {
+  return obj && typeof obj === 'object' && 'error' in obj && typeof obj.error === 'boolean';
+}
 
 export default function ImagePosts() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const platform = searchParams.get("platform") || "instagram"
   const [isGenerating, setIsGenerating] = useState(false)
   const [posts, setPosts] = useState<Post[]>([])
   const [brandKits, setBrandKits] = useState<any[]>([])
@@ -58,6 +69,9 @@ export default function ImagePosts() {
   const [announcement, setAnnouncement] = useState("")
   const [photoDesc, setPhotoDesc] = useState("")
 
+  // Placeholder user info (replace with real user data)
+  const user = { full_name: "Demo User", username: "demouser", avatar_url: "/default-avatar.png", headline: "Brand Marketer" }
+
   useEffect(() => {
     async function checkAuth() {
       setIsLoading(true)
@@ -74,27 +88,30 @@ export default function ImagePosts() {
       setIsAuthenticated(true)
 
       // Fetch user credits
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData } = await supabase
         .from("profiles")
         .select("credits")
-        .eq("id", session.user.id)
+        .eq("id", session.user.id as any)
         .single()
 
-      if (profileData) {
+      if (profileData && !isSelectQueryError(profileData) && typeof profileData.credits === "number") {
         console.log("Client: Fetched user credits:", profileData.credits)
         setUserCredits(profileData.credits || 0)
       }
 
       // Load brand kits
       const brandKitsData = await getBrandKits()
-      setBrandKits(brandKitsData)
-
-      if (brandKitsData.length > 0) {
+      if (Array.isArray(brandKitsData) && brandKitsData.length > 0 && brandKitsData[0] && !isSelectQueryError(brandKitsData[0]) && brandKitsData[0].id) {
+        setBrandKits(brandKitsData)
         setSelectedBrandKit(brandKitsData[0].id)
 
         // Load posts for the first brand kit
         const postsData = await getPosts(brandKitsData[0].id)
-        setPosts(postsData as Post[])
+        if (Array.isArray(postsData) && !isSelectQueryError(postsData[0])) {
+          setPosts(postsData as Post[])
+        }
+      } else {
+        setBrandKits([])
       }
 
       setIsLoading(false)
@@ -108,7 +125,9 @@ export default function ImagePosts() {
     setIsLoading(true)
 
     const postsData = await getPosts(value)
-    setPosts(postsData as Post[])
+    if (Array.isArray(postsData) && !isSelectQueryError(postsData[0])) {
+      setPosts(postsData as Post[])
+    }
 
     setIsLoading(false)
   }
@@ -158,7 +177,7 @@ export default function ImagePosts() {
 
     if (result?.error) {
       setError(result.error)
-    } else if (result?.success) {
+    } else if (result?.success && Array.isArray(result.data) && !isSelectQueryError(result.data[0])) {
       setSuccess(result.success)
       setPosts(result.data as Post[])
 
@@ -175,7 +194,7 @@ export default function ImagePosts() {
     const supabase = createClient()
     const { data: profileData } = await supabase.from("profiles").select("credits").single()
 
-    if (profileData) {
+    if (profileData && !isSelectQueryError(profileData) && typeof profileData.credits === "number") {
       console.log(`Client: Refreshed credits from DB: ${profileData.credits}`)
       setUserCredits(profileData.credits || 0)
     }
@@ -209,6 +228,12 @@ export default function ImagePosts() {
     setPostToDelete(postId)
   }
 
+  // Add new post to state (and save to backend in real app)
+  function handleNewPost(post: any) {
+    setPosts([post, ...posts]);
+    // TODO: Save to backend (Supabase)
+  }
+
   if (isLoading) {
     return (
       <div className="container mx-auto flex h-[80vh] items-center justify-center">
@@ -231,18 +256,25 @@ export default function ImagePosts() {
               <span className="sr-only">Back to Dashboard</span>
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight">Instagram Posts</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Social Posts</h1>
           <Badge variant="outline" className="ml-2 bg-primary/5 text-primary">
             AI Generated
           </Badge>
         </div>
         <div className="flex justify-between items-center">
-          <p className="text-muted-foreground">Create and manage Instagram posts for your brand</p>
+          <p className="text-muted-foreground">Create and manage posts for your brand</p>
           <div className="flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">{userCredits} credits remaining</span>
           </div>
         </div>
+      </div>
+
+      {/* Post Creation UI for selected platform */}
+      <div className="mb-8">
+        {platform === "linkedin" && <LinkedInPostCreator user={user} onPostCreated={handleNewPost} />}
+        {platform === "twitter" && <TweetCreator user={user} onPostCreated={handleNewPost} />}
+        {/* Instagram post creation UI can go here if needed */}
       </div>
 
       {/* Creative Toolbar (fixed, inspired by video-posts) */}
@@ -458,48 +490,53 @@ export default function ImagePosts() {
             </Card>
           ))}
         </div>
-      ) : posts.length > 0 ? (
+      ) : Array.isArray(posts) && posts.length > 0 ? (
         <div className="animate-in fade-in duration-500">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {posts.map((post) => (
-              <Card
-                key={post.id}
-                className="group overflow-hidden border border-border/50 bg-card transition-all duration-300 hover:shadow-lg hover:border-primary/20 hover:translate-y-[-4px] shadow-none"
-              >
-                <CardContent className="p-0 relative">
-                  <div className="aspect-square relative overflow-hidden bg-muted">
-                    <Image
-                      src={post.image_url || "/placeholder.svg"}
-                      alt={`Instagram post`}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                      <div className="flex w-full gap-2">
-                        <Button size="sm" variant="default" className="flex-1 " onClick={() => openPostEditor(post)}>
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => confirmDeletePost(post.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+            {posts.map((post) => {
+              if (post.platform === "twitter") return <TweetCard key={post.id} post={post} user={user} />;
+              if (post.platform === "linkedin") return <LinkedInPostCard key={post.id} post={post} user={user} />;
+              // Default to Instagram style
+              return (
+                <Card
+                  key={post.id}
+                  className="group overflow-hidden border border-border/50 bg-card transition-all duration-300 hover:shadow-lg hover:border-primary/20 hover:translate-y-[-4px] shadow-none"
+                >
+                  <CardContent className="p-0 relative">
+                    <div className="aspect-square relative overflow-hidden bg-muted">
+                      <Image
+                        src={post.image_url || "/placeholder.svg"}
+                        alt={`Instagram post`}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                        <div className="flex w-full gap-2">
+                          <Button size="sm" variant="default" className="flex-1 " onClick={() => openPostEditor(post)}>
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => confirmDeletePost(post.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="p-4">
-                  <div className="space-y-2 w-full">
-                    <p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-xs px-2 py-0">
-                        Instagram
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{new Date().toLocaleDateString()}</span>
+                  </CardContent>
+                  <CardFooter className="p-4">
+                    <div className="space-y-2 w-full">
+                      <p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p>
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-xs px-2 py-0">
+                          Instagram
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">{new Date().toLocaleDateString()}</span>
+                      </div>
                     </div>
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
+                  </CardFooter>
+                </Card>
+              )
+            })}
           </div>
         </div>
       ) : (
@@ -509,11 +546,11 @@ export default function ImagePosts() {
           </div>
           <h3 className="mb-2 text-xl font-semibold">No posts generated yet</h3>
           <p className="mb-6 text-muted-foreground max-w-md">
-            {brandKits.length > 0
+            {Array.isArray(brandKits) && brandKits.length > 0
               ? "Click the button below to generate Instagram posts for your brand"
               : "Create a brand kit first to generate Instagram posts"}
           </p>
-          {brandKits.length > 0 ? (
+          {Array.isArray(brandKits) && brandKits.length > 0 ? (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

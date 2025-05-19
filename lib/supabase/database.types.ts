@@ -18,6 +18,10 @@ export interface Database {
           subscription_period_end: string | null // When current period ends
           subscription_plan: string | null // Which plan they're on
           credits: number | null // Added credits field
+          instagram_id?: string | null
+          instagram_username?: string | null
+          instagram_name?: string | null
+          instagram_profile_picture_url?: string | null
         }
         Insert: {
           id: string
@@ -33,6 +37,10 @@ export interface Database {
           subscription_period_end?: string | null
           subscription_plan?: string | null
           credits?: number | null // Added credits field
+          instagram_id?: string | null
+          instagram_username?: string | null
+          instagram_name?: string | null
+          instagram_profile_picture_url?: string | null
         }
         Update: {
           id?: string
@@ -48,6 +56,10 @@ export interface Database {
           subscription_period_end?: string | null
           subscription_plan?: string | null
           credits?: number | null // Added credits field
+          instagram_id?: string | null
+          instagram_username?: string | null
+          instagram_name?: string | null
+          instagram_profile_picture_url?: string | null
         }
       }
       brand_kits: {
@@ -104,6 +116,7 @@ export interface Database {
           video_duration: number | null
           aspect_ratio: string | null
           quality: string | null
+          platform: string // 'instagram' | 'twitter' | 'linkedin' | etc.
         }
         Insert: {
           id?: string
@@ -120,6 +133,7 @@ export interface Database {
           video_duration?: number | null
           aspect_ratio?: string | null
           quality?: string | null
+          platform: string // 'instagram' | 'twitter' | 'linkedin' | etc.
         }
         Update: {
           id?: string
@@ -136,6 +150,7 @@ export interface Database {
           video_duration?: number | null
           aspect_ratio?: string | null
           quality?: string | null
+          platform?: string // 'instagram' | 'twitter' | 'linkedin' | etc.
         }
       }
       scheduled_posts: {

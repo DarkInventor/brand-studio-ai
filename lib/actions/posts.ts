@@ -22,8 +22,9 @@ import { R2_BUCKET, R2_PUBLIC_URL, R2_PUBLIC_DOMAIN } from "@/lib/r2"
  * @param imageOptions - Advanced image options
  * @param postType - The type of post (regular, educational, personal, inspirational, product, promo)
  * @param postTypeData - Data specific to the post type (e.g. quote, topic, product, announcement, photoDesc)
+ * @param platform - The platform for the post (default: 'instagram')
  */
-export async function generatePosts(brandKitId: string, count = 1, imageOptions?: ImageOptions, postType?: string, postTypeData?: any) {
+export async function generatePosts(brandKitId: string, count = 1, imageOptions?: ImageOptions, postType?: string, postTypeData?: any, platform: string = 'instagram') {
   console.log(`Server: Starting generatePosts with brandKitId=${brandKitId}, count=${count}, postType=${postType}`)
 
   const user = await getCurrentUser()
@@ -155,12 +156,26 @@ export async function generatePosts(brandKitId: string, count = 1, imageOptions?
           console.error("No image data returned from OpenAI")
         }
 
+        // Generate caption using platform
+        let caption = ''
+        try {
+          caption = await generateCaption(
+            kitAny,
+            postType,
+            postTypeData,
+            undefined,
+            platform
+          )
+        } catch (e) {
+          caption = ''
+        }
         const post: Database["public"]["Tables"]["posts"]["Insert"] = {
           user_id: user.id,
           brand_kit_id: safeBrandKit.id,
-          caption: "",
+          caption: caption || "",
           image_url: imageUrl || "",
           status: "draft",
+          platform: platform,
         }
         batchPosts.push(post)
       }
