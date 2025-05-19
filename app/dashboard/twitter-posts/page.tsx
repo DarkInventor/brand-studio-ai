@@ -255,12 +255,23 @@ export default function TwitterPostsPage() {
   // Save to Supabase when accepting a suggestion (insert new post)
   async function saveToSupabase({ tweetText, threadArray }: { tweetText?: string, threadArray?: string[] }) {
     if (!userId || !selectedBrandKit) return;
+    let imageUrl = "";
+    if (imagePreview && imagePreview.startsWith("data:image/")) {
+      // Upload to R2 via API route
+      const res = await fetch("/api/upload-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageDataUrl: imagePreview, userId }),
+      });
+      const data = await res.json();
+      if (data.url) imageUrl = data.url;
+    }
     const supabase = createClient();
     let insertObj: any = {
       user_id: userId,
       brand_kit_id: selectedBrandKit,
       caption: tweetText || (threadArray ? threadArray[0] : ""),
-      image_url: "",
+      image_url: imageUrl,
       status: "draft",
       type: "text",
       platform: "twitter",
@@ -269,12 +280,11 @@ export default function TwitterPostsPage() {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    const { data, error } = await supabase.from('posts').insert([insertObj]).select().single();
+    const { data: postData, error } = await supabase.from('posts').insert([insertObj]).select().single();
     if (error) {
       setError('Failed to save tweet(s) to Supabase.');
     } else {
-      // Add new post to local state
-      setPosts((prev) => [data, ...prev]);
+      setPosts((prev) => [postData, ...prev]);
     }
   }
 
@@ -363,7 +373,7 @@ export default function TwitterPostsPage() {
               </Button>
               {post.tweet_post && (
                 <TweetCard
-                  post={{ caption: post.tweet_post }}
+                  post={{ caption: post.tweet_post, image_url: post.image_url }}
                   user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
                 />
               )}
@@ -372,7 +382,7 @@ export default function TwitterPostsPage() {
                   {JSON.parse(post.tweet_thread).map((tweet: string, idx: number) => (
                     <TweetCard
                       key={idx}
-                      post={{ caption: tweet }}
+                      post={{ caption: tweet, image_url: post.image_url }}
                       user={{ full_name: brandName, username: brandName.replace(/\s+/g, '').toLowerCase(), avatar_url: brandLogo }}
                     />
                   ))}
