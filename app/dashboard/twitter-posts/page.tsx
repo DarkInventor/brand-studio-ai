@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { TweetCard } from "@/components/social/TweetCard"
-import { Loader2, Sparkles, Palette, Type, Plus, Trash2, ArrowLeft, ImageIcon, X, Send } from "lucide-react"
+import { Loader2, Sparkles, Palette, Type, Plus, Trash2, ArrowLeft, ImageIcon, X, Send, CreditCard } from "lucide-react"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -90,12 +90,23 @@ export default function TwitterPostsPage() {
   // State for deleting
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
+  const [userCredits, setUserCredits] = useState<number>(0)
+
   // Fetch user and posts on mount, restoring selectedBrandKit from localStorage if possible
   useEffect(() => {
     async function fetchUserAndPosts() {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id) setUserId(session.user.id);
+      // Fetch user credits
+      if (session?.user?.id) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("credits")
+          .eq("id", session.user.id as any)
+          .single();
+        setUserCredits(profileData && 'credits' in profileData ? profileData.credits || 0 : 0);
+      }
       // Fetch brand kits as before
       const kits = await getBrandKits();
       setBrandKits(kits);
@@ -220,7 +231,41 @@ export default function TwitterPostsPage() {
     setLoading(true)
     setError(null)
 
+    // Determine required credits
+    const requiredCredits = tweetType === "thread" ? 2 : 1;
+    if (userCredits < requiredCredits) {
+      setError(`Not enough credits. You need ${requiredCredits} credits but only have ${userCredits}.`);
+      setLoading(false);
+      return;
+    }
+
     try {
+      // Deduct credits in Supabase
+      const supabase = createClient();
+      if (userId) {
+        const { data: profileData, error: fetchError } = await supabase
+          .from("profiles")
+          .select("credits")
+          .eq("id", userId as any)
+          .single();
+        const currentCredits = profileData && 'credits' in profileData ? profileData.credits || 0 : 0;
+        if (currentCredits < requiredCredits) {
+          setError(`Not enough credits. You need ${requiredCredits} credits but only have ${currentCredits}.`);
+          setLoading(false);
+          return;
+        }
+        const newCredits = currentCredits - requiredCredits;
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ credits: newCredits } as any)
+          .eq("id", userId as any);
+        if (updateError) {
+          setError("Failed to update your credits. Please try again.");
+          setLoading(false);
+          return;
+        }
+        setUserCredits(newCredits);
+      }
       // Find the full brand kit object for the selected brand kit
       const selectedBrandKitObj = brandKits.find((bk) => bk.id === selectedBrandKit);
       const payload = {
@@ -396,6 +441,10 @@ export default function TwitterPostsPage() {
           <Badge variant="outline" className="ml-2 bg-primary/5 text-primary">
             AI Generated
           </Badge>
+          <div className="flex items-center gap-1 ml-auto">
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium text-sm">{userCredits} credits</span>
+          </div>
         </div>
         <p className="text-muted-foreground mb-2">
           {tweetType === "standard"
@@ -810,11 +859,11 @@ export default function TwitterPostsPage() {
                     <TooltipTrigger asChild>
                       <Button
                         onClick={handleGenerate}
-                        disabled={loading || (tweetType === "standard" ? !tweet : !tweetThread[0].content)}
+                        disabled={loading || (tweetType === "standard" ? !tweet : !tweetThread[0].content) || userCredits < (tweetType === "thread" ? 2 : 1)}
                         className="flex items-center gap-2 rounded-full h-9 px-4 bg-primary text-white"
                       >
                         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        {loading ? "Generating..." : "AI Suggestion"}
+                        {loading ? "Generating..." : `AI Suggestion (${tweetType === "thread" ? 2 : 1} credit${tweetType === "thread" ? 's' : ''})`}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
