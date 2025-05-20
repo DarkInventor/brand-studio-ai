@@ -299,7 +299,7 @@ export default function TwitterPostsPage() {
 
       // Handle different response formats based on tweet type
       if (tweetType === "standard") {
-        setSuggestion(data.tweet)
+      setSuggestion(data.tweet)
       } else if (tweetType === "thread") {
         // Expect an array of tweets for thread
         setSuggestion(data.tweets || [data.tweet])
@@ -369,7 +369,7 @@ export default function TwitterPostsPage() {
 
   async function handleAccept() {
     if (tweetType === "standard" && typeof suggestion === "string") {
-      setTweet(suggestion)
+    setTweet(suggestion)
       await saveToSupabase({ tweetText: suggestion })
     } else if (tweetType === "thread" && Array.isArray(suggestion)) {
       // Create new thread items from suggestions
@@ -525,7 +525,7 @@ export default function TwitterPostsPage() {
               disabled={tweetThread.length >= 5}
             >
               <Plus className="h-4 w-4" /> Add Tweet
-            </Button>
+          </Button>
           </Card>
         )}
 
@@ -591,7 +591,7 @@ export default function TwitterPostsPage() {
                     {suggestion.map((tweetContent, index) => (
                       <div key={index} className="relative">
                         {index > 0 && <div className="absolute left-5 top-0 w-0.5 h-4 bg-gray-200 -mt-1"></div>}
-                        <TweetCard
+            <TweetCard
                           post={{
                             caption: tweetContent,
                             image_url: index === 0 ? threadImages[0] || undefined : undefined,

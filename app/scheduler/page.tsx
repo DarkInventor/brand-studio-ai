@@ -1125,10 +1125,14 @@ export default function SchedulerPage() {
                   </Button>
                 </div>
               ) : (
-                <Button onClick={handleConnectInstagram} disabled={isConnecting} variant={isConnected ? "outline" : "default"} className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                  <Instagram className="h-4 w-4" />
-                  {isConnecting ? "Connecting..." : "Connect Instagram"}
-                </Button>
+                // <Button onClick={handleConnectInstagram} disabled={isConnecting} variant={isConnected ? "outline" : "default"} className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                //   <Instagram className="h-4 w-4" />
+                //   {isConnecting ? "Connecting..." : "Connect Instagram"}
+                // </Button>
+                <Button variant={isConnected ? "outline" : "default"} className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                <Instagram className="h-4 w-4" />
+                {isConnecting ? "Connecting..." : "Scheduling Coming Soon"}
+              </Button>
               )}
             </div>
           </div>
