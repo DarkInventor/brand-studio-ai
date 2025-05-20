@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -42,6 +42,9 @@ interface PostEditorModalProps {
 
 export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorModalProps) {
   const [caption, setCaption] = useState(post.caption)
+  useEffect(() => {
+    setCaption(post.caption || "");
+  }, [post, isOpen]);
   const [platform, setPlatform] = useState(post.platform || 'instagram')
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -158,7 +161,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
                 <div>
                   <DialogTitle className="text-xl">Edit Post</DialogTitle>
                   <div className="mt-1 flex items-center gap-2">
-                    <Badge variant={post.status === "published" ? "success" : "secondary"} className="capitalize">
+                    <Badge variant={post.status === "published" ? "default" : "secondary"} className="capitalize">
                       {post.status}
                     </Badge>
                     {post.scheduled_for && (
@@ -171,7 +174,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   <Select value={platform} onValueChange={setPlatform}>
                     <option value="instagram">Instagram</option>
                     <option value="twitter">Twitter/X</option>
@@ -180,7 +183,7 @@ export function PostEditorModal({ isOpen, onClose, post, onSave }: PostEditorMod
                   <Button variant="ghost" size="icon" className="md:hidden" onClick={onClose}>
                     <X className="h-4 w-4" />
                   </Button>
-                </div>
+                </div> */}
               </div>
             </DialogHeader>
 

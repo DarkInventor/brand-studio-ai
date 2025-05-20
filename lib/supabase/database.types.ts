@@ -120,6 +120,8 @@ export interface Database {
           tweet_post: string | null
           tweet_thread: string | null // store as JSON string
           tweet_thread_images?: Json | null
+          linkedin_post?: string | null // For regular LinkedIn posts
+          linkedin_article?: string | null // For LinkedIn articles
         }
         Insert: {
           id?: string
@@ -140,6 +142,8 @@ export interface Database {
           tweet_post?: string | null
           tweet_thread?: string | null
           tweet_thread_images?: Json | null
+          linkedin_post?: string | null
+          linkedin_article?: string | null
         }
         Update: {
           id?: string
@@ -160,6 +164,8 @@ export interface Database {
           tweet_post?: string | null
           tweet_thread?: string | null
           tweet_thread_images?: Json | null
+          linkedin_post?: string | null
+          linkedin_article?: string | null
         }
       }
       scheduled_posts: {
