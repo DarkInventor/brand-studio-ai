@@ -221,9 +221,11 @@ export default function TwitterPostsPage() {
     setError(null)
 
     try {
+      // Find the full brand kit object for the selected brand kit
+      const selectedBrandKitObj = brandKits.find((bk) => bk.id === selectedBrandKit);
       const payload = {
         user: { full_name: "Demo User" },
-        brandKit: selectedBrandKit,
+        brandKit: selectedBrandKitObj, // Pass the full object
         style,
         mood,
         tweetType,
