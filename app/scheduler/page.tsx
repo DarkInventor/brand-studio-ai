@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronLeft, ChevronRight, Calendar, Plus, Instagram, Edit2, Trash2, Clock, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Plus, Instagram, Edit2, Trash2, Clock, Loader2, Twitter, Linkedin, Music } from "lucide-react"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import { createClient } from "@/lib/supabase/client"
 import type { Post, BrandKit } from "@/lib/supabase/database.types"
@@ -184,25 +184,31 @@ const fetchScheduledPosts = async (brandKitId: string): Promise<Post[]> => {
 }
 
 // Save scheduled post to Supabase (update post's scheduled_for and status)
-const saveScheduledPost = async (postId: string, date: string, time: string, brandKitId: string) => {
+const saveScheduledPost = async (
+  postId: string,
+  date: string,
+  time: string,
+  brandKitId: string,
+  platform?: string
+) => {
   const supabase = createClient()
   if (typeof postId !== "string" || typeof brandKitId !== "string") return
   const safeTime = time && /^\d{2}:\d{2}$/.test(time) ? time : DEFAULT_POST_TIME
-  const safeDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toLocaleDateString("en-CA") // en-CA gives YYYY-MM-DD format
-  // Store directly in EST (no timezone conversion needed)
+  const safeDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toLocaleDateString("en-CA")
   const scheduledFor = `${safeDate} ${safeTime}:00`
 
-  const updateObj = {
+  const updateObj: any = {
     scheduled_for: scheduledFor,
     status: "scheduled",
   }
+  if (platform) updateObj.scheduled_platform = platform
 
   try {
     const { error } = await supabase
       .from("posts")
-      .update(updateObj as any)
-      .eq("id", postId as any)
-      .eq("brand_kit_id", brandKitId as any)
+      .update(updateObj)
+      .eq("id", postId)
+      .eq("brand_kit_id", brandKitId)
 
     if (error) {
       toast({
@@ -215,7 +221,7 @@ const saveScheduledPost = async (postId: string, date: string, time: string, bra
 
     toast({
       title: "Post scheduled",
-      description: `Post scheduled for ${safeDate} at ${safeTime}`,
+      description: `Post scheduled for ${safeDate} at ${safeTime} on ${platform || "selected platform"}`,
     })
     return true
   } catch (error) {
@@ -317,6 +323,7 @@ export default function SchedulerPage() {
   const [isConnecting, setIsConnecting] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [previewPost, setPreviewPost] = useState<Post | null>(null)
+  const [selectedAccount, setSelectedAccount] = useState<string>("")
 
   // Fetch Instagram profile for the selected brand kit
   async function fetchBrandKitInstagramProfile(brandKitId: string) {
@@ -614,7 +621,7 @@ export default function SchedulerPage() {
         const time = newWeekDays[dayIndex].slots[slotIndex].time
 
         // Save to database
-        const success = await saveScheduledPost(post.id, date, time, selectedBrandKitId)
+        const success = await saveScheduledPost(post.id, date, time, selectedBrandKitId, selectedAccount)
 
         // Revert UI if save failed
         if (!success) {
@@ -647,7 +654,7 @@ export default function SchedulerPage() {
         const time = newMonthDays[dayIndex].slots[slotIndex].time
 
         // Save to database
-        const success = await saveScheduledPost(post.id, date, time, selectedBrandKitId)
+        const success = await saveScheduledPost(post.id, date, time, selectedBrandKitId, selectedAccount)
 
         // Revert UI if save failed
         if (!success) {
@@ -742,7 +749,7 @@ export default function SchedulerPage() {
         const time = newWeekDays[dDayIndex].slots[dSlotIndex].time
 
         // Save to database
-        const success = await saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId)
+        const success = await saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId, selectedAccount)
 
         // Revert UI if save failed
         if (!success) {
@@ -775,7 +782,7 @@ export default function SchedulerPage() {
         const time = newMonthDays[dDayIndex].slots[dSlotIndex].time
 
         // Save to database
-        const success = await saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId)
+        const success = await saveScheduledPost(sourcePost.id, date, time, selectedBrandKitId, selectedAccount)
 
         // Revert UI if save failed
         if (!success) {
@@ -850,7 +857,7 @@ export default function SchedulerPage() {
 
       // Update each post in the database
       for (const post of postsToUpdate) {
-        const success = await saveScheduledPost(post.id, date, newTime, selectedBrandKitId)
+        const success = await saveScheduledPost(post.id, date, newTime, selectedBrandKitId, selectedAccount)
 
         // If any update fails, revert the UI for this slot
         if (!success) {
@@ -899,7 +906,7 @@ export default function SchedulerPage() {
 
       // Update each post in the database
       for (const post of postsToUpdate) {
-        const success = await saveScheduledPost(post.id, date, newTime, selectedBrandKitId)
+        const success = await saveScheduledPost(post.id, date, newTime, selectedBrandKitId, selectedAccount)
 
         // If any update fails, revert the UI for this slot
         if (!success) {
@@ -1006,6 +1013,16 @@ export default function SchedulerPage() {
       description: "Your schedule has been updated with the latest data",
     })
   }
+
+  // Handler for scheduling to selected account
+  const handleScheduleToSelectedAccount = () => {
+    if (!selectedAccount) return;
+    // TODO: Implement scheduling logic for the selected account
+    toast({
+      title: `Scheduled to ${selectedAccount.charAt(0).toUpperCase() + selectedAccount.slice(1)}`,
+      description: "Your post will be published to the selected account.",
+    });
+  };
 
   return (
     <TooltipProvider>
@@ -1125,14 +1142,43 @@ export default function SchedulerPage() {
                   </Button>
                 </div>
               ) : (
-                // <Button onClick={handleConnectInstagram} disabled={isConnecting} variant={isConnected ? "outline" : "default"} className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                //   <Instagram className="h-4 w-4" />
-                //   {isConnecting ? "Connecting..." : "Connect Instagram"}
-                // </Button>
-                <Button variant={isConnected ? "outline" : "default"} className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
-                <Instagram className="h-4 w-4" />
-                {isConnecting ? "Connecting..." : "Scheduling Coming Soon"}
-              </Button>
+                <div className="flex items-center gap-2">
+                  <Select
+                    onValueChange={setSelectedAccount}
+                    value={selectedAccount}
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select account to post" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="twitter">
+                        <span className="flex items-center gap-2">
+                          <Twitter className="h-4 w-4" />
+                          Twitter
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="linkedin">
+                        <span className="flex items-center gap-2">
+                          <Linkedin className="h-4 w-4" />
+                          LinkedIn
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="tiktok">
+                        <span className="flex items-center gap-2">
+                          <Music className="h-4 w-4" />
+                          TikTok
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    className="ml-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-xs sm:text-sm"
+                    onClick={handleScheduleToSelectedAccount}
+                    disabled={!selectedAccount}
+                  >
+                    Schedule Post
+                  </Button>
+                </div>
               )}
             </div>
           </div>

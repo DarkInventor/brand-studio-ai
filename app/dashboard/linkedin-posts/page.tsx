@@ -448,11 +448,6 @@ export default function LinkedInPostsPage() {
           <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-600 border-blue-200">
             AI Generated
           </Badge>
-           <div className="flex items-center gap-2">
-          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
-            {userCredits} Credits
-          </Badge>
-        </div>
         </div>
         <p className="text-muted-foreground mb-2">
           Create professional LinkedIn content that drives engagement and builds your personal brand

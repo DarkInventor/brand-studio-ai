@@ -122,6 +122,9 @@ export interface Database {
           tweet_thread_images?: Json | null
           linkedin_post?: string | null // For regular LinkedIn posts
           linkedin_article?: string | null // For LinkedIn articles
+          scheduled_platform?: string | null
+          posted_at?: string | null
+          tiktok_video_id?: string | null
         }
         Insert: {
           id?: string
@@ -144,6 +147,9 @@ export interface Database {
           tweet_thread_images?: Json | null
           linkedin_post?: string | null
           linkedin_article?: string | null
+          scheduled_platform?: string | null
+          posted_at?: string | null
+          tiktok_video_id?: string | null
         }
         Update: {
           id?: string
@@ -166,6 +172,9 @@ export interface Database {
           tweet_thread_images?: Json | null
           linkedin_post?: string | null
           linkedin_article?: string | null
+          scheduled_platform?: string | null
+          posted_at?: string | null
+          tiktok_video_id?: string | null
         }
       }
       scheduled_posts: {

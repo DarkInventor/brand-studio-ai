@@ -1,26 +1,74 @@
-import { MoreHorizontal } from "lucide-react";
+import type React from "react"
+import { Card } from "@/components/ui/card"
+import { ThumbsUp, MessageSquare, Share2, Send, Globe } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
-export function LinkedInPostCard({ post, user }: { post: any, user: any }) {
+export function LinkedInPostCard({ post, user, children }: { post: any; user: any; children?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border bg-white shadow p-4 max-w-xl mx-auto my-4">
-      <div className="flex items-center gap-3 mb-2">
-        <img src={user?.avatar_url || "/default-avatar.png"} className="w-10 h-10 rounded-full" />
-        <div>
-          <div className="font-bold">{user?.full_name || "User"}</div>
-          <div className="text-gray-500 text-xs">{user?.headline || "Professional headline"}</div>
+    <Card className="p-4 border border-gray-200 rounded-lg shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="w-12 h-12 rounded-full bg-blue-100 overflow-hidden flex-shrink-0">
+          {user.avatar_url ? (
+            <img
+              src={user.avatar_url || "/placeholder.svg"}
+              alt={user.full_name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-blue-600 text-white text-lg font-semibold">
+              {user.full_name?.[0] || "U"}
+            </div>
+          )}
         </div>
-        <div className="ml-auto"><MoreHorizontal /></div>
+        <div className="flex-1">
+          <div className="flex flex-col">
+            <span className="font-semibold">{user.full_name || "User Name"}</span>
+            <span className="text-sm text-gray-500">{user.headline || "Professional Headline"}</span>
+            <span className="text-xs text-gray-400">
+              2h • <Globe className="h-3 w-3 inline" />
+            </span>
+          </div>
+
+          <div className="mt-3 whitespace-pre-line text-gray-800">{post.caption || "Your post will appear here"}</div>
+
+          {post.image_url && (
+            <div className="mt-3 rounded-lg overflow-hidden border border-gray-100">
+              <img src={post.image_url || "/placeholder.svg"} alt="Post image" className="w-full object-cover" />
+            </div>
+          )}
+
+          {children}
+
+          {post.hashtags && post.hashtags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {post.hashtags.map((tag: string, index: number) => (
+                <span key={index} className="text-blue-600 hover:underline cursor-pointer">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 pt-2 border-t border-gray-100 flex items-center justify-between">
+            <Button variant="ghost" size="sm" className="gap-1 text-gray-500 hover:text-blue-600">
+              <ThumbsUp className="h-4 w-4" />
+              <span>Like</span>
+            </Button>
+            <Button variant="ghost" size="sm" className="gap-1 text-gray-500 hover:text-blue-600">
+              <MessageSquare className="h-4 w-4" />
+              <span>Comment</span>
+            </Button>
+            <Button variant="ghost" size="sm" className="gap-1 text-gray-500 hover:text-blue-600">
+              <Share2 className="h-4 w-4" />
+              <span>Share</span>
+            </Button>
+            <Button variant="ghost" size="sm" className="gap-1 text-gray-500 hover:text-blue-600">
+              <Send className="h-4 w-4" />
+              <span>Send</span>
+            </Button>
+          </div>
+        </div>
       </div>
-      <div className="text-base mb-2 whitespace-pre-line">{post.caption}</div>
-      {post.image_url && (
-        <img src={post.image_url} alt="LinkedIn post image" className="rounded-lg border mb-2" />
-      )}
-      <div className="flex gap-6 text-gray-500 text-xs mt-2">
-        <span>👍 Like</span>
-        <span>💬 Comment</span>
-        <span>🔗 Share</span>
-        <span>✉️ Send</span>
-      </div>
-    </div>
-  );
-} 
+    </Card>
+  )
+}

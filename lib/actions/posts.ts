@@ -6,7 +6,7 @@ import { getCurrentUser } from "./auth"
 import { getBrandKit } from "./brand-kits"
 import {
   generateCaption,
-  generateImageWithGPTImage1,
+  generateImageWithImagen4,
   downloadImageToBuffer,
   type ImageOptions,
 } from "@/lib/openai"
@@ -101,7 +101,7 @@ export async function generatePosts(brandKitId: string, count = 1, imageOptions?
         let generatedImageResponse = null
         const kitAny = brandKit as any
         try {
-          console.log("[generatePosts] Calling generateImageWithGPTImage1 with:", {
+          console.log("[generatePosts] Calling generateImageWithImagen4 with:", {
             brandKit: kitAny,
             postType,
             postTypeData,
@@ -109,7 +109,7 @@ export async function generatePosts(brandKitId: string, count = 1, imageOptions?
             quality: "low",
             imageOptions
           })
-          generatedImageResponse = await generateImageWithGPTImage1(
+          generatedImageResponse = await generateImageWithImagen4(
             kitAny,
             postType,
             postTypeData,
@@ -117,9 +117,9 @@ export async function generatePosts(brandKitId: string, count = 1, imageOptions?
             "low",
             imageOptions
           )
-          console.log("[generatePosts] generateImageWithGPTImage1 result:", generatedImageResponse)
+          console.log("[generatePosts] generateImageWithImagen4 result:", generatedImageResponse)
         } catch (e) {
-          console.error("[generatePosts] Error in generateImageWithGPTImage1:", e)
+          console.error("[generatePosts] Error in generateImageWithImagen4:", e)
           if (kitAny.logo_url && typeof kitAny.logo_url === "string" && kitAny.logo_url.startsWith("data:image/")) {
             console.error("[generatePosts] Would fallback to generateImageWithLogoEdit, but it is not available.")
           } else {

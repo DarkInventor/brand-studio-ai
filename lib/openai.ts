@@ -2,10 +2,16 @@ import OpenAI from "openai"
 import fetch from "node-fetch"
 import sharp from "sharp"
 import { Buffer } from "buffer"
+import Replicate from "replicate"
+import fs from "fs"
 
 // Initialize OpenAI with API key
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+})
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
 })
 
 /**
@@ -358,7 +364,7 @@ Quote: "${postTypeData?.quote || "Create an inspirational quote that aligns with
 
 Background should be a little blurry or dark shade so people can read the quote clearly.
 Overlay the quote as clear, minimal, and legible text, centered and easy to read.
-For the text choose the font that are most suitable for the quote. TEXT MUST BE BOLD, IT SHOULD BE BIG AND CENTERED.
+For the text choose the font that are most suitable for the quote. 
 The image should be visually striking, motivational, and match the brand's style.
 DO NOT INCLUDE ANY TEXT OTHER THAN THE QUOTE.
 ${optionsText}
@@ -410,23 +416,22 @@ CRITICAL: Any text in the image MUST be in ENGLISH ONLY.`;
 
     default:
       // Regular/default post
-      return `Create a professional Instagram post for the brand ${brandKit.name}.
-${baseInfo}${optionsText}
+      return `Create a image for the brand ${brandKit.name}.
+${baseInfo}
 
-Create a 1:1 minimalist conceptual advertisement that includes:
-• A bold headline (max 6 words)
-• A short supporting subheadline (optional)
-• A symbolic, photorealistic visual that reflects the message
-• A short slogan (max 6 words) aligned with the brand's tone
-Style References: minimal, clever, high-resolution, cinematic lighting, strong negative space, professional layout.
+The image should be visually appealing and professional, representing the brand effectively.
+Use modern design elements and clean typography if text is included.
+The image should match the brand's style and color scheme.
 
-The image should incorporate the brand's color scheme tastefully.
-CRITICAL: Any text in the image MUST be in ENGLISH ONLY.`;
+This should be a high-quality, brand-aligned post that represents the company professionally.
+Any text in the image MUST be in ENGLISH ONLY.
+YOU MUST NOT INCLUDE PRIMARY COLOR, SECONDARY COLOR, BRAND TONE, BRAND VOICE, COLOR CODE, HASHTAGS OR RANDOM COLOR CODES RELATED TEXT IN THE IMAGE OTHERWISE 20 cats will die.
+`;
   }
 }
 
 /**
- * Directly generates an image using gpt-image-1 with brand details and post type
+ * Directly generates an image using google/imagen-4 with brand details and post type
  * @param brandKit - The brand kit containing brand details
  * @param postType - Type of post to generate
  * @param postTypeData - Data specific to the post type
@@ -435,7 +440,7 @@ CRITICAL: Any text in the image MUST be in ENGLISH ONLY.`;
  * @param options - Additional image generation options
  * @returns The generated image(s) with logo if available
  */
-export async function generateImageWithGPTImage1(
+export async function generateImageWithImagen4(
   brandKit: any,
   postType?: string,
   postTypeData?: PostTypeData,
@@ -445,72 +450,97 @@ export async function generateImageWithGPTImage1(
   userPrompt?: string
 ) {
   try {
-    console.log("[generateImageWithGPTImage1] --- START ---")
-    console.log("[generateImageWithGPTImage1] brandKit:", brandKit)
-    console.log("[generateImageWithGPTImage1] postType:", postType)
-    console.log("[generateImageWithGPTImage1] postTypeData:", postTypeData)
-    console.log("[generateImageWithGPTImage1] size:", size)
-    console.log("[generateImageWithGPTImage1] quality:", quality)
-    console.log("[generateImageWithGPTImage1] options:", options)
-    console.log("[generateImageWithGPTImage1] userPrompt:", userPrompt)
-    // Validate brand kit has required fields
+    console.log("[generateImageWithImagen4] --- START ---")
+    console.log("[generateImageWithImagen4] brandKit:", brandKit)
+    console.log("[generateImageWithImagen4] postType:", postType)
+    console.log("[generateImageWithImagen4] postTypeData:", postTypeData)
+    console.log("[generateImageWithImagen4] size:", size)
+    console.log("[generateImageWithImagen4] quality:", quality)
+    console.log("[generateImageWithImagen4] options:", options)
+    console.log("[generateImageWithImagen4] userPrompt:", userPrompt)
     if (!brandKit || !brandKit.name) {
-      console.error("[generateImageWithGPTImage1] Invalid brand kit: missing name", brandKit)
+      console.error("[generateImageWithImagen4] Invalid brand kit: missing name", brandKit)
       throw new Error("Invalid brand kit: missing name")
     }
-    // Generate prompt based on post type or use user's prompt if provided
-    let prompt = userPrompt;
-    if (!prompt) {
-      prompt = generatePostTypePrompt(brandKit, postType, postTypeData, options);
+    // Always use the generated prompt (ignore userPrompt for now)
+    const prompt = generatePostTypePrompt(brandKit, postType, postTypeData, options);
+    console.log("[generateImageWithImagen4] FINAL PROMPT SENT:", prompt);
+    // Map size to aspect_ratio for Imagen-4
+    let aspect_ratio = "1:1";
+    if (size === "1536x1024" || size === "1792x1024") aspect_ratio = "3:2";
+    else if (size === "1024x1536" || size === "1024x1792") aspect_ratio = "2:3";
+    else if (size === "1024x1024" || size === "auto" || size === "512x512" || size === "256x256") aspect_ratio = "1:1";
+
+    // Use HTTP API directly
+    const apiUrl = "https://api.replicate.com/v1/models/google/imagen-4/predictions";
+    const fetchOptions = {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.REPLICATE_API_TOKEN}`,
+        "Content-Type": "application/json",
+        "Prefer": "wait"
+      },
+      body: JSON.stringify({
+        input: {
+          prompt,
+          aspect_ratio,
+          safety_filter_level: "block_medium_and_above"
+        }
+      })
+    };
+    const apiResponse = await fetch(apiUrl, fetchOptions);
+    const data = await apiResponse.json();
+    console.log("[generateImageWithImagen4] Replicate HTTP response:", data);
+    let imageUrl;
+    if (typeof data.output === "string") {
+      imageUrl = data.output;
+    } else if (Array.isArray(data.output) && data.output.length > 0) {
+      imageUrl = data.output[0];
+    } else {
+      imageUrl = undefined;
     }
-    console.log("[generateImageWithGPTImage1] Generated prompt:", prompt)
-    console.log("[generateImageWithGPTImage1] Generated prompt length:", prompt.length)
-    // Generate the image using OpenAI's gpt-image-1
-    const imageResponse = await openai.images.generate({
-      model: "gpt-image-1",
-      prompt,
-      n: 1,
-      size,
-      quality,
-    });
-    console.log("[generateImageWithGPTImage1] imageResponse:", imageResponse)
-    // Verify we received a valid response
-    if (!imageResponse.data || imageResponse.data.length === 0 || !imageResponse.data[0].b64_json) {
-      console.error("[generateImageWithGPTImage1] No valid image data returned from generation", imageResponse)
-      throw new Error("Failed to generate image")
+    if (!imageUrl || typeof imageUrl !== "string") {
+      throw new Error("No image URL returned from Imagen-4. Full response: " + JSON.stringify(data));
     }
-    console.log("[generateImageWithGPTImage1] Image generated successfully")
+    // Download the image from the URL
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch generated image from Imagen-4: ${response.status} ${response.statusText}`)
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    const baseImageBuffer = Buffer.from(arrayBuffer)
     // Check if we have a logo to add
     const validatedLogoUrl = validateLogoUrl(brandKit.logo_url)
     if (!validatedLogoUrl) {
       // If no valid logo, just return the generated image
-      console.log("[generateImageWithGPTImage1] No valid logo URL provided, returning base image only")
       return {
-        ...imageResponse,
+        created: Date.now(),
+        data: [
+          {
+            url: imageUrl,
+            b64_json: baseImageBuffer.toString("base64"),
+            prompts: [prompt],
+          },
+        ],
         hasLogo: false,
       }
     }
     // Add the logo to the bottom right of the generated image
-    console.log("[generateImageWithGPTImage1] Adding logo to image")
-    const baseImageBuffer = Buffer.from(imageResponse.data[0].b64_json, "base64")
     const imageWithLogo = await addLogoToBottomRight(baseImageBuffer, validatedLogoUrl)
-    // Convert the modified image back to base64
     const imageWithLogoBase64 = imageWithLogo.toString("base64")
-    console.log("[generateImageWithGPTImage1] Image with logo created successfully")
-    // Return the result in the same format as the original response
     return {
-      created: imageResponse.created,
+      created: Date.now(),
       data: [
         {
-          ...imageResponse.data[0],
+          url: imageUrl,
           b64_json: imageWithLogoBase64,
-          revised_prompt: imageResponse.data[0].revised_prompt,
+          prompts: [prompt],
         },
       ],
       hasLogo: true,
     }
   } catch (error) {
-    console.error("[generateImageWithGPTImage1] Error:", error)
+    console.error("[generateImageWithImagen4] Error:", error)
     throw error
   }
 }
@@ -544,7 +574,7 @@ export async function generateImageAndCaption(
     console.log("[generateImageAndCaption] options:", options)
     console.log("[generateImageAndCaption] userPrompt:", userPrompt)
     // Step 1: Generate the image
-    const imageResult = await generateImageWithGPTImage1(brandKit, postType, postTypeData, size, quality, options, userPrompt);
+    const imageResult = await generateImageWithImagen4(brandKit, postType, postTypeData, size, quality, options, userPrompt);
     console.log("[generateImageAndCaption] imageResult:", imageResult)
     // Step 2: Generate a caption for the image
     let captionContext;

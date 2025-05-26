@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     // Run the Pixverse model
     let videoUrl
     try {
-      const output = await replicate.run("pixverse/pixverse-v4", { input })
+      const output = await replicate.run("pixverse/pixverse-v4.5", { input })
       videoUrl = Array.isArray(output) ? output[0] : output
       if (!videoUrl) {
         // Refund credits if failed

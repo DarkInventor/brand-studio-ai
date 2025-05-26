@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Loader2, RefreshCw, Calendar, Package, Edit, Trash2, ImageIcon, ArrowLeft, CreditCard, Palette, Type, Sparkles } from "lucide-react"
+import { Loader2, RefreshCw, Calendar, Package, Edit, Trash2, ImageIcon, ArrowLeft, CreditCard, Palette, Type, Sparkles, MoreVertical, Share2 } from "lucide-react"
 import { generatePosts, getPosts, deletePost } from "@/lib/actions/posts"
 import { getBrandKits } from "@/lib/actions/brand-kits"
 import { createClient } from "@/lib/supabase/client"
@@ -19,6 +19,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { PostEditorModal } from "@/app/components/post-editor-modal"
 import type { Post } from "@/lib/supabase/database.types"
@@ -26,7 +27,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { ImageOptions } from "@/lib/openai"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import { toast } from "@/components/ui/use-toast"
 
 export default function ImagePosts() {
   const router = useRouter()
@@ -57,6 +59,8 @@ export default function ImagePosts() {
   const [product, setProduct] = useState("")
   const [announcement, setAnnouncement] = useState("")
   const [photoDesc, setPhotoDesc] = useState("")
+  const [showPostNowDialog, setShowPostNowDialog] = useState(false)
+  const [postToSubmit, setPostToSubmit] = useState<Post | null>(null)
 
   useEffect(() => {
     async function checkAuth() {
@@ -207,6 +211,60 @@ export default function ImagePosts() {
 
   function confirmDeletePost(postId: string) {
     setPostToDelete(postId)
+  }
+
+  const handlePostNow = (post: Post) => {
+    if (!selectedBrandKit) {
+      toast({
+        title: "Brand Kit Not Selected",
+        description: "Please select a brand kit before posting.",
+        variant: "destructive",
+      })
+      return
+    }
+    setPostToSubmit(post)
+    setShowPostNowDialog(true)
+  }
+
+  const confirmPostNowTikTok = async () => {
+    if (postToSubmit && selectedBrandKit) {
+      try {
+        const response = await fetch("/api/scheduler/postnow", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ 
+            postId: postToSubmit.id, 
+            brandKitId: selectedBrandKit, 
+          }),
+        })
+
+        const result = await response.json()
+
+        if (response.ok && result.success) {
+          toast({
+            title: "Post Published to TikTok",
+            description: result.message || `${postToSubmit.caption || 'Post'} has been sent to TikTok.`,
+          })
+        } else {
+          toast({
+            title: "Error Posting to TikTok",
+            description: result.error || "An unexpected error occurred.",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        console.error("Failed to call postnow API for TikTok:", error)
+        toast({
+          title: "API Call Failed",
+          description: "Could not connect to the server to post now.",
+          variant: "destructive",
+        })
+      }
+      setShowPostNowDialog(false)
+      setPostToSubmit(null)
+    }
   }
 
   if (isLoading) {
@@ -487,16 +545,32 @@ export default function ImagePosts() {
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter className="p-4">
-                  <div className="space-y-2 w-full">
-                    <p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-xs px-2 py-0">
-                        Instagram
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{new Date().toLocaleDateString()}</span>
-                    </div>
-                  </div>
+                <CardFooter className="flex justify-between items-center">
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(post.created_at).toLocaleDateString()}
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openPostEditor(post)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Post
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePostNow(post)}>
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Post Now to TikTok
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => confirmDeletePost(post.id)} className="text-red-600">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Post
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </CardFooter>
               </Card>
             ))}
@@ -583,6 +657,22 @@ export default function ImagePosts() {
                 "Delete"
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Post Now Dialog */}
+      <Dialog open={showPostNowDialog} onOpenChange={setShowPostNowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Post Now to TikTok?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to post "{postToSubmit?.caption || 'this image'}" to TikTok immediately?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPostNowDialog(false)}>Cancel</Button>
+            <Button onClick={confirmPostNowTikTok}>Post to TikTok</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
