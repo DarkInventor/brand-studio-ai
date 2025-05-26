@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { TweetCard } from "@/components/social/TweetCard"
-import { Loader2, Sparkles, Palette, Type, Plus, Trash2, ArrowLeft, ImageIcon, X, Send, CreditCard } from "lucide-react"
+import { Loader2, Sparkles, Palette, Type, Plus, Trash2, ArrowLeft, ImageIcon, X, Send, CreditCard, Twitter } from "lucide-react"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -15,6 +15,19 @@ import { Badge } from "@/components/ui/badge"
 import { getBrandKits } from "@/lib/actions/brand-kits"
 import { createClient } from "@/lib/supabase/client"
 import type { Json } from "@/lib/supabase/database.types"
+import { toast } from "@/components/ui/use-toast"
+
+// Custom X Logo Component (new Twitter/X logo)
+const XLogo = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    className={className}
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+)
 
 // Constants for dropdown options
 const TWEET_TYPES = [
@@ -409,6 +422,72 @@ export default function TwitterPostsPage() {
     setDeletingPostId(null);
   }
 
+  // Share to Twitter/X functionality
+  const handleShareToTwitter = (post: any) => {
+    // Handle different post types
+    if (post.tweet_post) {
+      // Single tweet
+      const content = post.tweet_post;
+      const twitterComposeUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(content)}`;
+      window.open(twitterComposeUrl, '_blank', 'noopener,noreferrer');
+      
+      toast({
+        title: "Opening X",
+        description: "X will open with your tweet pre-filled. You can edit and publish it there.",
+      });
+    } else if (post.tweet_thread) {
+      // Thread - open multiple compose windows or show instructions
+      const threadArray = JSON.parse(post.tweet_thread);
+      
+      if (threadArray.length === 1) {
+        // Single tweet in thread
+        const twitterComposeUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(threadArray[0])}`;
+        window.open(twitterComposeUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        // Multiple tweets - open first tweet and show instructions
+        const firstTweet = threadArray[0] + '\n\n🧵 Thread (1/' + threadArray.length + ')';
+        const twitterComposeUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(firstTweet)}`;
+        window.open(twitterComposeUrl, '_blank', 'noopener,noreferrer');
+        
+        // Copy remaining tweets to clipboard for easy pasting
+        const remainingTweets = threadArray.slice(1).map((tweet: string, index: number) => 
+          `${index + 2}/${threadArray.length} ${tweet}`
+        ).join('\n\n');
+        
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(remainingTweets);
+        }
+      }
+      
+      toast({
+        title: "Opening X Thread",
+        description: threadArray.length > 1 
+          ? `Opening first tweet with thread indicator. ${threadArray.length - 1} remaining tweets copied to clipboard.`
+          : "X will open with your tweet pre-filled.",
+      });
+    } else if (post.caption) {
+      // Fallback to caption
+      const content = post.caption;
+      const twitterComposeUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(content)}`;
+      window.open(twitterComposeUrl, '_blank', 'noopener,noreferrer');
+      
+      toast({
+        title: "Opening X",
+        description: "X will open with your content pre-filled.",
+      });
+    } else if (typeof post === 'string') {
+      // Direct string content
+      const content = post;
+      const twitterComposeUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(content)}`;
+      window.open(twitterComposeUrl, '_blank', 'noopener,noreferrer');
+      
+      toast({
+        title: "Opening X",
+        description: "X will open with your content pre-filled.",
+      });
+    }
+  };
+
   // In thread mode, update threadImages when adding/removing tweets
   useEffect(() => {
     if (tweetType === "thread") {
@@ -460,17 +539,28 @@ export default function TwitterPostsPage() {
           <h2 className="text-lg font-semibold mb-2">Your Twitter Posts</h2>
           {posts.filter(isValidPost).map((post) => (
             <Card key={post.id} className="mb-4 p-4 border border-gray-200/70 bg-white/80 shadow-sm relative">
-              {/* Delete button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 h-7 w-7 text-red-500 hover:text-red-700"
-                onClick={() => handleDeletePost(post.id)}
-                disabled={deletingPostId === post.id}
-                title="Delete post"
-              >
-                {deletingPostId === post.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              </Button>
+              {/* Action buttons */}
+              <div className="absolute top-2 right-2 flex gap-1">
+                <Button
+                  variant="ghost"
+                  className="h-7 px-2.5 py-1.5 text-white bg-black hover:bg-gray-800 flex items-center gap-1.5 text-xs font-medium rounded-full"
+                  onClick={() => handleShareToTwitter(post)}
+                  title="Share to X"
+                >
+                  <XLogo className="h-3.5 w-3.5" />
+                  Post on X
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-red-500 hover:text-red-700"
+                  onClick={() => handleDeletePost(post.id)}
+                  disabled={deletingPostId === post.id}
+                  title="Delete post"
+                >
+                  {deletingPostId === post.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </Button>
+              </div>
               {post.tweet_post && (
                 <TweetCard
                   post={{ caption: post.tweet_post, image_url: post.image_url }}
@@ -531,7 +621,39 @@ export default function TwitterPostsPage() {
 
         {/* Live Preview */}
         <div className="mb-6">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">Live Preview</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-medium text-muted-foreground">Live Preview</h2>
+            {((tweetType === "standard" && tweet.trim()) || (tweetType === "thread" && tweetThread[0].content.trim())) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (tweetType === "standard") {
+                    // Create a mock post object for single tweet
+                    const mockPost = {
+                      tweet_post: tweet,
+                      tweet_thread: null,
+                      caption: tweet
+                    };
+                    handleShareToTwitter(mockPost);
+                  } else {
+                    // Create a mock post object for thread
+                    const threadContent = tweetThread.map(t => t.content);
+                    const mockPost = {
+                      tweet_post: null,
+                      tweet_thread: JSON.stringify(threadContent),
+                      caption: tweetThread[0].content
+                    };
+                    handleShareToTwitter(mockPost);
+                  }
+                }}
+                className="flex items-center gap-2 text-white bg-black hover:bg-gray-800 rounded-full"
+              >
+                <XLogo className="h-4 w-4" />
+                Post on X
+              </Button>
+            )}
+          </div>
           <Card className="p-4 border border-gray-200/70 bg-white/80 shadow-sm">
             {tweetType === "standard" ? (
               // Single tweet preview
@@ -570,9 +692,38 @@ export default function TwitterPostsPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-muted-foreground">AI Suggestion</h2>
-              <Button size="sm" variant="outline" onClick={handleAccept}>
-                Accept Suggestion
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (tweetType === "standard" && typeof suggestion === "string") {
+                      // Create a mock post object for single tweet suggestion
+                      const mockPost = {
+                        tweet_post: suggestion,
+                        tweet_thread: null,
+                        caption: suggestion
+                      };
+                      handleShareToTwitter(mockPost);
+                    } else if (Array.isArray(suggestion)) {
+                      // Create a mock post object for thread suggestion
+                      const mockPost = {
+                        tweet_post: null,
+                        tweet_thread: JSON.stringify(suggestion),
+                        caption: suggestion[0]
+                      };
+                      handleShareToTwitter(mockPost);
+                    }
+                  }}
+                  className="flex items-center gap-2 text-white bg-black hover:bg-gray-800 rounded-full"
+                >
+                  <XLogo className="h-4 w-4" />
+                  Post on X
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleAccept}>
+                  Accept Suggestion
+                </Button>
+              </div>
             </div>
             <Card className="border border-primary/20 bg-primary/5 p-4 shadow-sm">
               {tweetType === "standard" && typeof suggestion === "string" ? (

@@ -22,6 +22,17 @@ export interface Database {
           instagram_username?: string | null
           instagram_name?: string | null
           instagram_profile_picture_url?: string | null
+          // --- Twitter fields ---
+          twitter_username?: string | null
+          twitter_display_name?: string | null
+          twitter_profile_image_url?: string | null
+          twitter_user_id?: string | null
+          twitter_bio?: string | null
+          twitter_followers_count?: number | null
+          twitter_following_count?: number | null
+          twitter_verified?: boolean | null
+          twitter_account_created_at?: string | null
+          twitter_last_updated?: string | null
         }
         Insert: {
           id: string
@@ -41,6 +52,17 @@ export interface Database {
           instagram_username?: string | null
           instagram_name?: string | null
           instagram_profile_picture_url?: string | null
+          // --- Twitter fields ---
+          twitter_username?: string | null
+          twitter_display_name?: string | null
+          twitter_profile_image_url?: string | null
+          twitter_user_id?: string | null
+          twitter_bio?: string | null
+          twitter_followers_count?: number | null
+          twitter_following_count?: number | null
+          twitter_verified?: boolean | null
+          twitter_account_created_at?: string | null
+          twitter_last_updated?: string | null
         }
         Update: {
           id?: string
@@ -60,6 +82,17 @@ export interface Database {
           instagram_username?: string | null
           instagram_name?: string | null
           instagram_profile_picture_url?: string | null
+          // --- Twitter fields ---
+          twitter_username?: string | null
+          twitter_display_name?: string | null
+          twitter_profile_image_url?: string | null
+          twitter_user_id?: string | null
+          twitter_bio?: string | null
+          twitter_followers_count?: number | null
+          twitter_following_count?: number | null
+          twitter_verified?: boolean | null
+          twitter_account_created_at?: string | null
+          twitter_last_updated?: string | null
         }
       }
       brand_kits: {

@@ -36,10 +36,12 @@ import {
   MessageSquare,
   Share2,
   Palette,
+  Linkedin,
 } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { getBrandKits } from "@/lib/actions/brand-kits"
+import { toast } from "@/components/ui/use-toast"
 
 // Mock component for LinkedIn post card
 function LinkedInPostCard({ post, user }: { post: any; user: any }) {
@@ -433,6 +435,39 @@ export default function LinkedInPostsPage() {
     }
   }
 
+  // Share to LinkedIn functionality
+  const handleShareToLinkedIn = (post: any) => {
+    // Get the post content - prioritize linkedin_article over linkedin_post
+    const content = post.linkedin_article || post.linkedin_post || post.caption || '';
+    
+    // Create LinkedIn share URL with pre-filled content
+    // LinkedIn's native sharing interface accepts text content via URL parameters
+    const linkedInShareUrl = 'https://www.linkedin.com/sharing/share-offsite/';
+    
+    // Create the share URL with the post content
+    const shareParams = new URLSearchParams({
+      url: window.location.origin, // Your website URL as the source
+      text: content, // The post content
+    });
+    
+    // If there's an image, we can include it in the text or as a separate parameter
+    let finalContent = content;
+    if (post.image_url) {
+      finalContent += `\n\nImage: ${post.image_url}`;
+    }
+    
+    // LinkedIn's compose post URL with pre-filled text
+    const linkedInComposeUrl = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(finalContent)}`;
+    
+    // Open LinkedIn in a new tab with pre-filled content
+    window.open(linkedInComposeUrl, '_blank', 'noopener,noreferrer');
+    
+    // Show success message
+    const supabase = createClient();
+    // You could also use a toast notification here if you have it set up
+    console.log('Opening LinkedIn with pre-filled content');
+  };
+
   return (
     <div className="min-h-screen pb-32 sm:pb-40 bg-[#f3f6fa]">
       {/* Header Section */}
@@ -466,16 +501,28 @@ export default function LinkedInPostsPage() {
           <h2 className="text-lg font-semibold mb-2">Your LinkedIn Posts</h2>
           {posts.filter(isValidPost).map((post) => (
             <Card key={post.id} className="mb-4 p-4 border border-gray-200/70 bg-white/80 shadow-sm relative">
-              {/* Delete button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 h-7 w-7 text-red-500 hover:text-red-700"
-                onClick={() => handleDeletePost(post.id)}
-                title="Delete post"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              {/* Action buttons */}
+              <div className="absolute top-2 right-2 flex gap-1">
+                <Button
+                  variant="ghost"
+                  // size="icon" removed as it's no longer an icon-only button
+                  className="h-7 px-2.5 py-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 flex items-center gap-1.5 text-xs font-medium"
+                  onClick={() => handleShareToLinkedIn(post)}
+                  title="Share to LinkedIn"
+                >
+                  <Linkedin className="h-3.5 w-3.5" /> {/* LinkedIn Icon */}
+                  Post on LinkedIn Now
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-red-500 hover:text-red-700"
+                  onClick={() => handleDeletePost(post.id)}
+                  title="Delete post"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
               <div className="flex items-center gap-2 mb-2">
                 {post.linkedin_article && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Article</Badge>}
                 {post.linkedin_post && <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Post</Badge>}
@@ -497,7 +544,24 @@ export default function LinkedInPostsPage() {
 
         {/* Live Preview */}
         <div className="mb-6">
-          <h2 className="text-sm font-medium text-muted-foreground mb-3">Live Preview</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-medium text-muted-foreground">Live Preview</h2>
+            {post.trim() && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleShareToLinkedIn({ 
+                  linkedin_post: post, 
+                  image_url: imagePreview,
+                  caption: post 
+                })}
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+              >
+                <Share2 className="h-4 w-4" />
+                Share to LinkedIn
+              </Button>
+            )}
+          </div>
           <Card className="p-4 border border-gray-200/70 bg-white/80 shadow-sm">
             <LinkedInPostCard
               post={{
@@ -518,9 +582,24 @@ export default function LinkedInPostsPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-medium text-muted-foreground">AI Suggestion</h2>
-              <Button size="sm" variant="outline" onClick={handleAccept}>
-                Accept Suggestion
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleShareToLinkedIn({ 
+                    linkedin_post: suggestion, 
+                    image_url: imagePreview,
+                    caption: suggestion 
+                  })}
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share to LinkedIn
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleAccept}>
+                  Accept Suggestion
+                </Button>
+              </div>
             </div>
             <Card className="border border-blue-100 bg-blue-50/50 p-4 shadow-sm">
               <LinkedInPostCard

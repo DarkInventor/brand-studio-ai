@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
-import { signInWithInstagram } from "@/lib/actions/auth"
+import { signInWithInstagram, signInWithTwitter } from "@/lib/actions/auth"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
 /**
@@ -297,6 +297,14 @@ interface InstagramProfile {
   instagram_profile_picture_url: string | null;
 }
 
+// Add a type for the Twitter profile
+interface TwitterProfile {
+  twitter_username: string | null;
+  twitter_display_name: string | null;
+  twitter_profile_image_url: string | null;
+  twitter_user_id: string | null;
+}
+
 export default function SchedulerPage() {
   // Use localStorage to persist the selected brand kit
   const [selectedBrandKitId, setSelectedBrandKitId] = useState<string>(() => {
@@ -324,6 +332,9 @@ export default function SchedulerPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [previewPost, setPreviewPost] = useState<Post | null>(null)
   const [selectedAccount, setSelectedAccount] = useState<string>("")
+  const [twitterProfile, setTwitterProfile] = useState<TwitterProfile | null>(null)
+  const [isLoadingTwitter, setIsLoadingTwitter] = useState(false)
+  const [isConnectingTwitter, setIsConnectingTwitter] = useState(false)
 
   // Fetch Instagram profile for the selected brand kit
   async function fetchBrandKitInstagramProfile(brandKitId: string) {
@@ -1024,6 +1035,61 @@ export default function SchedulerPage() {
     });
   };
 
+  // Fetch Twitter profile for the current user from Supabase MCP
+  async function fetchTwitterProfileAndEnforceAuth() {
+    setIsLoadingTwitter(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      // Not logged in, force Twitter login
+      await handleConnectTwitter()
+      setIsLoadingTwitter(false)
+      return
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("twitter_username, twitter_display_name, twitter_profile_image_url, twitter_user_id")
+      .eq("id", user.id)
+      .single()
+    if (!profile || !profile.twitter_user_id) {
+      // No Twitter info, force Twitter login
+      await handleConnectTwitter()
+      setIsLoadingTwitter(false)
+      return
+    }
+    setTwitterProfile(profile as TwitterProfile)
+    setIsLoadingTwitter(false)
+  }
+
+  // When Twitter is selected, check auth and fetch profile, or force login
+  useEffect(() => {
+    if (selectedAccount === "twitter") {
+      fetchTwitterProfileAndEnforceAuth()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccount])
+
+  // After Twitter OAuth callback, refetch profile if redirected back
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search.substring(1))
+      if (params.get("twitter") === "success") {
+        fetchTwitterProfileAndEnforceAuth()
+        window.history.replaceState({}, document.title, "/scheduler")
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleConnectTwitter() {
+    setIsConnectingTwitter(true)
+    const result = await signInWithTwitter()
+    if (result?.url) {
+      window.location.href = result.url
+    }
+    setIsConnectingTwitter(false)
+  }
+
   return (
     <TooltipProvider>
       <div className="flex h-screen flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
@@ -1153,8 +1219,23 @@ export default function SchedulerPage() {
                     <SelectContent>
                       <SelectItem value="twitter">
                         <span className="flex items-center gap-2">
-                          <Twitter className="h-4 w-4" />
-                          Twitter
+                          {isLoadingTwitter ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : twitterProfile ? (
+                            <>
+                              <img
+                                src={twitterProfile.twitter_profile_image_url || "/placeholder.svg"}
+                                alt="Twitter"
+                                className="h-6 w-6 rounded-full"
+                              />
+                              <span>{twitterProfile.twitter_username || twitterProfile.twitter_display_name}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Twitter className="h-4 w-4" />
+                              Twitter
+                            </>
+                          )}
                         </span>
                       </SelectItem>
                       <SelectItem value="linkedin">
@@ -1171,6 +1252,15 @@ export default function SchedulerPage() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  {selectedAccount === "twitter" && !twitterProfile && !isLoadingTwitter && (
+                    <Button
+                      className="ml-2 bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-xs sm:text-sm"
+                      onClick={handleConnectTwitter}
+                      disabled={isConnectingTwitter}
+                    >
+                      {isConnectingTwitter ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connect Twitter"}
+                    </Button>
+                  )}
                   <Button
                     className="ml-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-xs sm:text-sm"
                     onClick={handleScheduleToSelectedAccount}

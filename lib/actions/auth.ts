@@ -172,6 +172,25 @@ export async function signInWithInstagram() {
   return { url: data.url };
 }
 
+export async function signInWithTwitter() {
+  try {
+    const supabase = createActionClient();
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "twitter",
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/twitter/callback`,
+      },
+    });
+    if (error) {
+      return { error: error.message };
+    }
+    return { url: data.url };
+  } catch (error) {
+    console.error("Error with Twitter sign-in:", error);
+    return { error: "An unexpected error occurred with Twitter sign-in." };
+  }
+}
+
 export async function updateUserProfile(formData: FormData) {
   try {
     const supabase = createActionClient()
