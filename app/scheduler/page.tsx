@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ChevronRight, Calendar, Plus, Instagram, Edit2, Trash2, Clock, Loader2, Twitter, Linkedin, Music } from "lucide-react"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import { createClient } from "@/lib/supabase/client"
-import type { Post, BrandKit } from "@/lib/supabase/database.types"
+import type { Post, BrandKit, Profile } from "@/lib/supabase/database.types"
 import { getBrandKits } from "@/lib/actions/brand-kits"
 import { getPosts } from "@/lib/actions/posts"
 import { Input } from "@/components/ui/input"
@@ -207,8 +207,8 @@ const saveScheduledPost = async (
     const { error } = await supabase
       .from("posts")
       .update(updateObj)
-      .eq("id", postId)
-      .eq("brand_kit_id", brandKitId)
+      .eq("id", postId as string)
+      .eq("brand_kit_id", brandKitId as string)
 
     if (error) {
       toast({
@@ -248,8 +248,8 @@ const removeScheduledPost = async (postId: string, brandKitId: string) => {
     const { error } = await supabase
       .from("posts")
       .update(updateObj as any)
-      .eq("id", postId as any)
-      .eq("brand_kit_id", brandKitId as any)
+      .eq("id", postId as string)
+      .eq("brand_kit_id", brandKitId as string)
 
     if (error) {
       toast({
@@ -1046,12 +1046,18 @@ export default function SchedulerPage() {
       setIsLoadingTwitter(false)
       return
     }
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from("profiles")
       .select("twitter_username, twitter_display_name, twitter_profile_image_url, twitter_user_id")
-      .eq("id", user.id)
+      .eq("id", user.id as string)
       .single()
-    if (!profile || !profile.twitter_user_id) {
+    // Type guard: check profile is an object and not an error
+    const hasTwitterId =
+      profile &&
+      typeof profile === "object" &&
+      "twitter_user_id" in profile &&
+      (profile as { twitter_user_id?: string | null }).twitter_user_id
+    if (error || !hasTwitterId) {
       // No Twitter info, force Twitter login
       await handleConnectTwitter()
       setIsLoadingTwitter(false)
@@ -1069,13 +1075,23 @@ export default function SchedulerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAccount])
 
-  // After Twitter OAuth callback, refetch profile if redirected back
+  // After Twitter OAuth callback, refetch profile if redirected back, and handle Twitter email error
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search.substring(1))
       if (params.get("twitter") === "success") {
         fetchTwitterProfileAndEnforceAuth()
         window.history.replaceState({}, document.title, "/scheduler")
+      }
+      // Handle Twitter missing email error
+      if (
+        params.get("error") === "server_error" &&
+        params.get("error_description")?.toLowerCase().includes("email")
+      ) {
+        alert(
+          "Twitter login failed: Twitter did not provide an email address. Please use another login method or add an email to your Twitter account."
+        )
+        window.location.href = "/login"
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
